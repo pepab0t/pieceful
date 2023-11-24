@@ -1,9 +1,9 @@
-from enum import Enum, auto
 import inspect
 import typing as t
 from collections import defaultdict
+from enum import Enum, auto
 
-from pieceful.depends import Depends
+from ._depends import Depends
 
 # from functools import partial
 
