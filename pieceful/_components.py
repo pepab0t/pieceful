@@ -1,9 +1,15 @@
+from enum import Enum, auto
 import inspect
 import typing as t
 from collections import defaultdict
-from functools import partial
 
-_components: dict[str, dict[type, object]] = defaultdict(dict)
+from pieceful.depends import Depends
+
+# from functools import partial
+
+_pieces: dict[str, dict[type, object]] = defaultdict(dict)
+
+register: dict[str, dict[type, t.Any]] = defaultdict(dict)
 
 annot_type = type(t.Annotated[str, "type"])
 
@@ -18,6 +24,10 @@ class PieceException(Exception):
         return self.message
 
 
+class HasMetadata(t.Protocol):
+    __metadata__: t.Any
+
+
 def _check_annot_type(param_name, type_hint: t.Any):
     if type(type_hint) is not annot_type:
         raise PieceException(
@@ -25,12 +35,17 @@ def _check_annot_type(param_name, type_hint: t.Any):
         )
 
 
-def _parse_annotation(param_name: str, type_hint: t.Any) -> tuple[str, type]:
-    _check_annot_type(param_name, type_hint)
+def _check_annot_definition(type_hint: HasMetadata):
     if len(type_hint.__metadata__) != 1:
         raise PieceException(
             'Expected using one component name in annotations: Annotated[MyClass, "component_name"].'
         )
+
+
+def _parse_annotation(param_name: str, type_hint: t.Any) -> tuple[str, type]:
+    _check_annot_type(param_name, type_hint)
+    _check_annot_definition(type_hint)
+
     component_name = type_hint.__metadata__[0]
     component_type = type_hint.__origin__
 
@@ -47,7 +62,7 @@ def _parse_annotation(param_name: str, type_hint: t.Any) -> tuple[str, type]:
 
 def _find_existing_component(component_name: str, component_type: t.Type[T]) -> T:
     found = []
-    for _cls, _obj in _components[component_name].items():
+    for _cls, _obj in _pieces[component_name].items():
         if issubclass(_cls, component_type):
             found.append((_cls, _obj))
 
@@ -62,6 +77,49 @@ def _find_existing_component(component_name: str, component_type: t.Type[T]) -> 
     return found[0][1]
 
 
+def _run_lazy(cls: t.Type[T], name: str, params: dict[str, t.Any]) -> t.Type[T]:
+    register[name][cls] = component_dict = {}
+
+    for param_name, param in inspect.signature(cls).parameters.items():
+        if param_name in params:
+            component_dict[param_name] = params[param_name]
+            continue
+
+        if param.default is not param.empty:
+            component_dict[param_name] = param.default
+            continue
+
+        component_name, component_type = _parse_annotation(param_name, param.annotation)
+
+        component_dict[param_name] = Depends(component_name, component_type)
+
+    return cls
+
+
+def _run_eager(cls: t.Type[T], name: str, params: dict[str, t.Any]) -> t.Type[T]:
+    args: dict[str, t.Any] = {}
+
+    for param_name, param in inspect.signature(cls).parameters.items():
+        if param_name in params:
+            args[param_name] = params[param_name]
+            continue
+
+        if param.default is not param.empty:
+            continue
+
+        component_name, component_type = _parse_annotation(param_name, param.annotation)
+
+        if component_name not in _pieces:
+            raise PieceException(
+                f"Missing component `{component_name}` of type {component_type.__name__}"
+            )
+
+        args[param_name] = _find_existing_component(component_name, component_type)
+
+    _pieces[name][cls] = cls(**args)
+    return cls
+
+
 class Piece:
     """Decorate class as a component.\\
     Automatically instantiates the class and inject all other required components dependencies and parameters.
@@ -71,8 +129,18 @@ class Piece:
         params: Parameters, that are not @Piece and should be injected on initialization
     """
 
-    def __init__(self, name: str, **params):
+    class PieceStrategy(Enum):
+        LAZY = auto()
+        EAGER = auto()
+
+    LAZY: PieceStrategy = PieceStrategy.LAZY
+    EAGER: PieceStrategy = PieceStrategy.EAGER
+
+    def __init__(
+        self, name: str, strategy: PieceStrategy = PieceStrategy.LAZY, **params
+    ):
         self.name = name
+        self.strategy = strategy
         self.params = params
 
     def __call__(self, cls: t.Type[T]) -> t.Type[T]:
@@ -81,76 +149,89 @@ class Piece:
                 f"Wrong usage of @{self.__class__.__name__}. Must be used on class. `{cls.__name__}` is not a class."
             )
 
-        params: dict[str, t.Any] = {}
+        if self.strategy == Piece.LAZY:
+            return _run_lazy(cls, self.name, self.params)
+        elif self.strategy == Piece.EAGER:
+            return _run_eager(cls, self.name, self.params)
+        else:
+            raise PieceException(f"Invalid strategy: `{self.strategy}`")
 
-        for param_name, param in inspect.signature(cls).parameters.items():
-            if param_name in self.params:
-                params[param_name] = self.params[param_name]
-                continue
 
-            if param.default is not param.empty:
-                continue
+def _get_singular_piece(
+    piece_name: str, piece_type: t.Type[T], storage: dict[str, dict[type, t.Any]]
+) -> t.Optional[T]:
+    if piece_name not in storage:
+        return None
 
-            component_name, component_type = _parse_annotation(
-                param_name, param.annotation
-            )
+    found_pieces: list[T] = [
+        p_obj
+        for p_type, p_obj in storage[piece_name].items()
+        if issubclass(p_type, piece_type)
+    ]
 
-            if component_name not in _components:
-                raise PieceException(
-                    f"Missing component `{component_name}` of type {component_type.__name__}"
-                )
+    if (count_pieces := len(found_pieces)) == 0:
+        return None
 
-            params[param_name] = _find_existing_component(
-                component_name, component_type
-            )
+    if count_pieces > 1:
+        raise PieceException(f"Found {count_pieces} matching pieces")
 
-        _components[self.name][cls] = cls(**params)
+    return found_pieces[0]
 
-        return cls
+
+def _save_piece(piece_name: str, piece: object):
+    named_pieces = _pieces[piece_name]
+    if piece.__class__ in named_pieces:
+        raise PieceException(
+            f"Dependency {piece_name}({piece.__class__.__name__}) already exist"
+        )
+
+    named_pieces[piece.__class__] = piece
+
+
+def create_object(piece_name: str, piece_type: t.Type[T]) -> T:
+    if (piece := _get_singular_piece(piece_name, piece_type, _pieces)) is not None:
+        return piece
+
+    if piece_name not in register:
+        raise PieceException(
+            f"Piece `{piece_name}` not registered, use @Piece() to register component"
+        )
+
+    cls_params_list: list[tuple[type, dict[str, t.Any]]] = list(
+        filter(
+            lambda item: issubclass(item[0], piece_type), register[piece_name].items()
+        )
+    )
+
+    if len(cls_params_list) == 0:
+        raise PieceException(
+            f"Not found `{piece_name}` of type `{piece_type.__name__}`"
+        )
+
+    if len(cls_params_list) > 1:
+        raise PieceException(
+            f"Found {len(cls_params_list)} components {piece_name}({piece_type.__name__})"
+        )
+
+    cls, params = cls_params_list[0]
+
+    for param_name, param_val in params.items():
+        if isinstance(param_val, Depends):
+            params[param_name] = create_object(param_val.name, param_val.component_type)
+
+    piece = cls(**params)
+    _save_piece(piece_name, piece)
+
+    return piece
+
+
+def get_piece(piece_name: str, piece_type: t.Type[T]) -> T:
+    return _find_existing_component(piece_name, piece_type)
 
 
 def inject_pieces(fn: t.Callable[..., T]) -> t.Callable[..., T]:
-    """Inject Annotated component and return partial function with component argument fixed.
+    def wrapper(*args, **kwargs):
+        # TODO
+        raise NotImplementedError("Not implemented yet")
 
-    Args:
-        fn (t.Callable[..., T]): Function to wrap
-
-    Returns:
-        t.Callable[..., T]: partial function with fixed components
-    """
-    if not callable(fn):
-        raise PieceException(
-            f"{fn.__name__} is not callable and cannot be decrater with @{inject_pieces.__name__}"
-        )
-
-    params = {}
-    for param_name, param_type in t.get_type_hints(fn, include_extras=True).items():
-        try:
-            _check_annot_type(param_name, type_hint=param_type)
-        except PieceException:
-            continue
-
-        component_name, component_type = _parse_annotation(param_name, param_type)
-
-        params[param_name] = _find_existing_component(component_name, component_type)
-
-    return partial(fn, **params)
-
-
-def get_piece(component_name: str, component_type: t.Type[T]) -> T:
-    """Retrieves a component if possible
-
-    Args:
-        component_name (str): Name of component
-        component_type (t.Type[T]): Type of component
-
-    Raises:
-        ComponentException: If unable to retrieve component based on given parameters
-
-    Returns:
-        T: Object, the desired component
-    """
-    if component_name not in _components:
-        raise PieceException(f"Component `{component_name}` does not exist.")
-
-    return _find_existing_component(component_name, component_type)
+    return wrapper
