@@ -1,9 +1,14 @@
 import inspect
 import typing as t
 from collections import defaultdict
-from functools import partial
 
-_components: dict[str, dict[type, object]] = defaultdict(dict)
+from pieceful.depends import Depends
+
+# from functools import partial
+
+_pieces: dict[str, dict[type, object]] = defaultdict(dict)
+
+register: dict[str, dict[type, t.Any]] = defaultdict(dict)
 
 annot_type = type(t.Annotated[str, "type"])
 
@@ -47,7 +52,7 @@ def _parse_annotation(param_name: str, type_hint: t.Any) -> tuple[str, type]:
 
 def _find_existing_component(component_name: str, component_type: t.Type[T]) -> T:
     found = []
-    for _cls, _obj in _components[component_name].items():
+    for _cls, _obj in _pieces[component_name].items():
         if issubclass(_cls, component_type):
             found.append((_cls, _obj))
 
@@ -81,76 +86,81 @@ class Piece:
                 f"Wrong usage of @{self.__class__.__name__}. Must be used on class. `{cls.__name__}` is not a class."
             )
 
-        params: dict[str, t.Any] = {}
+        register[self.name][cls] = component_dict = {}
 
         for param_name, param in inspect.signature(cls).parameters.items():
             if param_name in self.params:
-                params[param_name] = self.params[param_name]
+                component_dict[param_name] = self.params[param_name]
                 continue
 
             if param.default is not param.empty:
+                component_dict[param_name] = param.default
                 continue
 
             component_name, component_type = _parse_annotation(
                 param_name, param.annotation
             )
 
-            if component_name not in _components:
-                raise PieceException(
-                    f"Missing component `{component_name}` of type {component_type.__name__}"
-                )
-
-            params[param_name] = _find_existing_component(
-                component_name, component_type
-            )
-
-        _components[self.name][cls] = cls(**params)
+            component_dict[param_name] = Depends(component_name, component_type)
 
         return cls
 
 
-def inject_pieces(fn: t.Callable[..., T]) -> t.Callable[..., T]:
-    """Inject Annotated component and return partial function with component argument fixed.
+def get_singular_piece(
+    piece_name: str, piece_type: type, storage: dict[str, dict[type, t.Any]]
+) -> t.Optional[object]:
+    if piece_name not in storage:
+        return None
 
-    Args:
-        fn (t.Callable[..., T]): Function to wrap
+    found_pieces = [
+        p_obj
+        for p_type, p_obj in storage[piece_name].items()
+        if issubclass(p_type, piece_type)
+    ]
 
-    Returns:
-        t.Callable[..., T]: partial function with fixed components
-    """
-    if not callable(fn):
+    if (count_pieces := len(found_pieces)) == 0:
+        return None
+
+    if count_pieces > 1:
+        raise PieceException(f"Found {count_pieces} matching pieces")
+
+    return found_pieces[0]
+
+
+# def save_piece(piece_name: str, piece: object):
+#     _pieces[]
+
+
+def create_object(piece_name: str, piece_type: type):
+    if (piece := get_singular_piece(piece_name, piece_type, _pieces)) is not None:
+        return piece
+
+    if piece_name not in register:
+        raise PieceException(f"{piece_name} not registered")
+
+    cls_params_list: list[tuple[type, dict[str, t.Any]]] = list(
+        filter(
+            lambda item: issubclass(item[0], piece_type), register[piece_name].items()
+        )
+    )
+
+    if len(cls_params_list) == 0:
         raise PieceException(
-            f"{fn.__name__} is not callable and cannot be decrater with @{inject_pieces.__name__}"
+            f"Not found `{piece_name}` of type `{piece_type.__name__}`"
         )
 
-    params = {}
-    for param_name, param_type in t.get_type_hints(fn, include_extras=True).items():
-        try:
-            _check_annot_type(param_name, type_hint=param_type)
-        except PieceException:
-            continue
+    if len(cls_params_list) > 1:
+        raise PieceException(
+            f"Found {len(cls_params_list)} {piece_name}({piece_type.__name__})"
+        )
 
-        component_name, component_type = _parse_annotation(param_name, param_type)
+    cls_params = cls_params_list[0]
+    cls, params = cls_params
 
-        params[param_name] = _find_existing_component(component_name, component_type)
+    for param_name, param_val in params.items():
+        if isinstance(param_val, Depends):
+            params[param_name] = create_object(param_val.name, param_val.component_type)
 
-    return partial(fn, **params)
+    piece = cls(**params)
 
-
-def get_piece(component_name: str, component_type: t.Type[T]) -> T:
-    """Retrieves a component if possible
-
-    Args:
-        component_name (str): Name of component
-        component_type (t.Type[T]): Type of component
-
-    Raises:
-        ComponentException: If unable to retrieve component based on given parameters
-
-    Returns:
-        T: Object, the desired component
-    """
-    if component_name not in _components:
-        raise PieceException(f"Component `{component_name}` does not exist.")
-
-    return _find_existing_component(component_name, component_type)
+    return piece
