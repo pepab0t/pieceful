@@ -1,25 +1,37 @@
 from typing import Annotated, Protocol, runtime_checkable
 
-from pieceful._components_lazy import Piece, create_object
+from pieceful._components import Piece, create_object
 
 
 @runtime_checkable
 class AbstractLogger(Protocol):
-    def log2(self, a: int, c) -> None:
+    def log(self, a: int) -> None:
         ...
 
-    ...
 
-
-@Piece("logger")
+# @Piece("logger", number=3)
 class Logger:
+    def __init__(self, number: int) -> None:
+        self.number = number
+
     def log(self, b: str) -> None:
-        print("logging")
+        print(f"logging {self.number}")
+
+
+@Piece("logger2", strategy=Piece.LAZY)
+class Logger2:
+    def __init__(self) -> None:
+        print(f"{self.__class__.__name__} instantiated")
+
+    def log(self, a: int) -> None:
+        print("logging2")
 
 
 @Piece("controller", a=2)
 class Controller:
-    def __init__(self, a, logger: Annotated[AbstractLogger, "logger"], number: int = 1):
+    def __init__(
+        self, a, logger: Annotated[AbstractLogger, "logger2"], number: int = 1
+    ):
         self.a = a
         self.logger = logger
         self.number = number
@@ -31,5 +43,6 @@ class Controller:
         self.logger.log(1)
 
 
+print("start")
 obj: Controller = create_object("controller", Controller)
 obj.print()
