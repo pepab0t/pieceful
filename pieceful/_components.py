@@ -172,6 +172,7 @@ def get_piece(piece_name: str, piece_type: t.Type[T]) -> T:
     except exc.PieceException:
         pass
 
+    # _find_existing_component can be split to two functions
     cls, params = _find_existing_component(piece_name, piece_type, _register)
 
     for param_name, param_val in params.items():
@@ -181,12 +182,6 @@ def get_piece(piece_name: str, piece_type: t.Type[T]) -> T:
     piece = cls(**params)
     _save_piece(piece_name, piece)
 
+    del _register[piece_name][piece_type]
+
     return piece
-
-
-def inject_pieces(fn: t.Callable[..., T]) -> t.Callable[..., T]:
-    def wrapper(*args, **kwargs):
-        # TODO
-        raise NotImplementedError("Not implemented yet")
-
-    return wrapper
