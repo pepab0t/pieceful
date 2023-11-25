@@ -1,6 +1,6 @@
 from typing import Annotated, Protocol, runtime_checkable
 
-from pieceful._components import Piece, create_object
+from pieceful._components import Piece, get_piece
 
 
 @runtime_checkable
@@ -44,5 +44,5 @@ class Controller:
 
 
 print("start")
-obj: Controller = create_object("controller", Controller)
+obj: Controller = get_piece("controller", Controller)
 obj.print()
