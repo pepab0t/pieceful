@@ -1,15 +1,44 @@
+from typing import Annotated, NamedTuple
 from pytest import fixture
 from pieceful._components import _register, _pieces
-from collections import defaultdict
+from pieceful import Piece
+from pieceful.exc import AmbiguousPieceException
+from .models import EagerEngine, LazyEngine
+
+
+class NameTypeTuple(NamedTuple):
+    name: str
+    type: type
+
+    @property
+    def annotation(self):
+        return Annotated[self.type, self.name]
 
 
 @fixture
-def clear_register():
-    global _register
-    _register = defaultdict(dict)
+def refresh_after():
+    yield
+    _register.clear()
+    _pieces.clear()
 
 
 @fixture
-def clear_pieces():
-    global _pieces
-    _pieces = defaultdict(dict)
+def decorate_lazy_engine():
+    name = "lazy_engine"
+    try:
+        Piece(name)(LazyEngine)
+    except AmbiguousPieceException:
+        pass
+
+    return NameTypeTuple(name, LazyEngine)
+
+
+@fixture
+def decorate_eager_engine():
+    name = "eager_engine"
+    try:
+        Piece(name, Piece.EAGER)(EagerEngine)
+    except AmbiguousPieceException:
+        pass
+
+    return NameTypeTuple(name, EagerEngine)
