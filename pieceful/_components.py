@@ -8,14 +8,14 @@ from . import exc
 from ._swallower import swallow_exception
 
 # from functools import partial
+T = t.TypeVar("T")
+
 
 _pieces: dict[str, dict[type, object]] = defaultdict(dict)
 
 _register: dict[str, dict[type, dict[str, t.Any]]] = defaultdict(dict)
 
 annot_type = type(t.Annotated[str, "type"])
-
-T = t.TypeVar("T")
 
 
 class HasMetadata(t.Protocol):
@@ -137,23 +137,35 @@ class Piece:
             raise exc.PieceException(
                 f"Wrong usage of @{self.__class__.__name__}. Must be used on class. `{cls.__name__}` is not a class."
             )
+        if cls in _register[self.name]:
+            raise exc.AmbiguousPieceException(
+                f"Piece `{self.name}` of type `{cls}` already registered"
+            )
+        if cls in _pieces[self.name]:
+            raise exc.AmbiguousPieceException(
+                f"Piece `{self.name}` of type `{cls}` already instantiated"
+            )
 
         if self.strategy == PieceStrategy.EAGER:
-            args = _get_instantiation_args(
-                cls,
-                self.params,
-                lambda c_name, c_type: _find_existing_component(
-                    c_name, c_type, _pieces
-                ),
-            )
-            _pieces[self.name][cls] = cls(**args)
+            self.run_eager(cls)
         elif self.strategy == PieceStrategy.LAZY:
-            args = _get_instantiation_args(cls, self.params, Depends)
-            _register[self.name][cls] = args
+            self.run_lazy(cls)
         else:
             raise exc.PieceException(f"Invalid strategy: `{self.strategy}`")
 
         return cls
+
+    def run_lazy(self, cls):
+        args = _get_instantiation_args(cls, self.params, Depends)
+        _register[self.name][cls] = args
+
+    def run_eager(self, cls):
+        args = _get_instantiation_args(
+            cls,
+            self.params,
+            lambda c_name, c_type: _find_existing_component(c_name, c_type, _pieces),
+        )
+        _pieces[self.name][cls] = cls(**args)
 
 
 def _save_piece(piece_name: str, piece: object):
@@ -182,6 +194,7 @@ def get_piece(piece_name: str, piece_type: t.Type[T]) -> T:
     piece = cls(**params)
     _save_piece(piece_name, piece)
 
-    del _register[piece_name][piece_type]
+    if piece.__class__ is piece_type:
+        del _register[piece_name][piece_type]
 
     return piece

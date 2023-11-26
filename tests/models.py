@@ -11,3 +11,14 @@ class AbstractBrakes(ABC):
 
 class AbstractEngine(ABC):
     pass
+
+
+class EagerEngine(AbstractEngine):
+    pass
+
+
+class LazyEngine(AbstractEngine):
+    pass
+
+
+# class
