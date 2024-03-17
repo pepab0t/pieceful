@@ -1,19 +1,17 @@
 import typing as t
 from abc import ABC, abstractmethod
 
-from pieceful import Piece, get_piece
+from pieceful_ import Piece, get_piece
 
 
 class AbstractEngine(ABC):
     @abstractmethod
-    def run(self) -> None:
-        ...
+    def run(self) -> None: ...
 
 
 class AbstractDriver(ABC):
     @abstractmethod
-    def drive(self) -> None:
-        ...
+    def drive(self) -> None: ...
 
 
 class AbstractVehicle(ABC):
@@ -21,8 +19,7 @@ class AbstractVehicle(ABC):
     driver: AbstractDriver
 
     @abstractmethod
-    def start(self) -> None:
-        ...
+    def start(self) -> None: ...
 
 
 @Piece("driver")

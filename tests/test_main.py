@@ -1,9 +1,9 @@
 from typing import Annotated, Protocol, runtime_checkable
 import pytest
-from pieceful import Piece, get_piece, PieceFactory
-from pieceful._entity import Initializer
-from pieceful._components import _register, _pieces
-from pieceful.exc import (
+from pieceful_ import Piece, get_piece, PieceFactory
+from pieceful_._entity import Initializer
+from pieceful_._components import _register, _pieces
+from pieceful_.exc import (
     AmbiguousPieceException,
     PieceAnnotationException,
     PieceException,
@@ -201,21 +201,18 @@ def test_dependency_inversion_protocol(refresh_after):
 
     @runtime_checkable
     class EngineProtocol(Protocol):
-        def run(self, _: int) -> bool:
-            ...
+        def run(self, _: int) -> bool: ...
 
     @Piece(vehicle_name)
     class Car(AbstractVehicle):
         def __init__(self, engine: Annotated[EngineProtocol, engine_name]):
             self.engine = engine
 
-        def get_speed(self, unit: str) -> int:
-            ...
+        def get_speed(self, unit: str) -> int: ...
 
     @runtime_checkable
     class CarProtocol(Protocol):
-        def get_speed(self, _: str) -> int:
-            ...
+        def get_speed(self, _: str) -> int: ...
 
     vehicle = get_piece(vehicle_name, CarProtocol)
 
@@ -233,16 +230,14 @@ def test_dependency_inversion_protocol_not_runtime_error(refresh_after):
             return True
 
     class EngineProtocol(Protocol):
-        def run(self, _: int) -> bool:
-            ...
+        def run(self, _: int) -> bool: ...
 
     @Piece(vehicle_name)
     class Car(AbstractVehicle):
         def __init__(self, engine: Annotated[EngineProtocol, engine_name]):
             self.engine = engine
 
-        def get_speed(self, unit: str) -> int:
-            ...
+        def get_speed(self, unit: str) -> int: ...
 
     with pytest.raises(TypeError):
         get_piece(vehicle_name, Car)

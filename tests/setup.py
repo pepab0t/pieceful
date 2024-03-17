@@ -1,8 +1,8 @@
 from typing import Annotated, NamedTuple
 from pytest import fixture
-from pieceful._components import _register, _pieces
-from pieceful import Piece
-from pieceful.exc import AmbiguousPieceException
+from pieceful_._components import _register, _pieces
+from pieceful_ import Piece
+from pieceful_.exc import AmbiguousPieceException
 from .models import EagerEngine, LazyEngine
 
 

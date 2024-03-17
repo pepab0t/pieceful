@@ -1,12 +1,11 @@
 from typing import Annotated, Protocol, runtime_checkable
 
-from pieceful._components import Piece, get_piece
+from pieceful_._components import Piece, get_piece
 
 
 @runtime_checkable
 class AbstractLogger(Protocol):
-    def log(self, a: int) -> None:
-        ...
+    def log(self, a: int) -> None: ...
 
 
 # @Piece("logger", number=3)
