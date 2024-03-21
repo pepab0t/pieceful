@@ -1,5 +1,5 @@
 import inspect
-from typing import Annotated, Any, ForwardRef, Iterable, Type
+from typing import Annotated, Any, Callable, ForwardRef, Iterable, Type
 
 from .entity import DefaultFactoryParameter, DefaultParameter, Parameter, PieceParameter
 from .exceptions import (
@@ -11,18 +11,16 @@ from .exceptions import (
 ANNOTATION_TYPE = type(Annotated[str, "example"])
 
 
-def create_piece_parameter(
-    name: str, piece_name: str, piece_type: Type[Any]
-) -> PieceParameter:
+def create_piece_parameter(name: str, piece_name: str, piece_type: Any) -> PieceParameter:
     if not piece_name.strip():
         raise PieceException("piece_name must not be blank")
     if isinstance(piece_type, ForwardRef):
-        # TODO
+        # piece_type._evaluate(globals())
         raise PieceException("ForwardRef not supported")
     return PieceParameter(name, piece_name, piece_type)
 
 
-def create_default_factory_parameter(name: str, factory):
+def create_default_factory_parameter(name: str, factory: Callable[[], Any]):
     return DefaultFactoryParameter(name, factory)
 
 

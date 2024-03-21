@@ -9,3 +9,6 @@ class CreationType(Enum):
 class Scope(Enum):
     ORIGINAL = auto()
     UNIVERSAL = auto()
+
+
+class NotResolved: ...

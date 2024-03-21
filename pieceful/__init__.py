@@ -1,3 +1,5 @@
 from typing import Any, Callable
 
-from .entry import get_piece, track_piece
+from .entry import Piece, PieceFactory, get_piece
+from .enums import CreationType, Scope
+from .exceptions import PieceException
