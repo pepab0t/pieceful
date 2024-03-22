@@ -1,7 +1,7 @@
 from inspect import _empty, signature
 from typing import Callable, ParamSpec, Type, TypeVar
 
-from .core import piece_data_factory
+from .core import PieceData, piece_data_factory
 from .enums import CreationType as Ct
 from .enums import Scope
 from .exceptions import PieceException
