@@ -1,5 +1,4 @@
 from inspect import _empty, signature
-from math import pi
 from typing import Callable, ParamSpec, Type, TypeVar
 
 from .core import piece_data_factory
@@ -34,9 +33,32 @@ def get_piece(piece_name: str, piece_type: Type[_T]) -> _T:
     return registry.get_object(piece_name, piece_type)
 
 
+def register_piece(
+    cls: Type[_T],
+    piece_name: str,
+    creation_type: Ct = Ct.LAZY,
+    scope: Scope = Scope.UNIVERSAL,
+) -> None:
+    _track_piece(cls, piece_name, cls, creation_type, scope)
+
+
+def register_piece_factory(
+    fn: Callable[..., _T],
+    piece_name: str,
+    creation_type: Ct = Ct.LAZY,
+    scope: Scope = Scope.UNIVERSAL,
+) -> None:
+    piece_type = signature(fn).return_annotation
+
+    if piece_type is _empty or piece_type is None:
+        raise PieceException(f"Function `{fn.__name__}` must have return type specified and cannot be None")
+
+    _track_piece(piece_type, piece_name, fn, creation_type, scope)
+
+
 def Piece(piece_name: str, creation_type: Ct = Ct.LAZY, scope: Scope = Scope.UNIVERSAL):
     def inner(cls: Type[_T]) -> Type[_T]:
-        _track_piece(cls, piece_name, cls, creation_type, scope)
+        register_piece(cls, piece_name, creation_type, scope)
         return cls
 
     return inner
@@ -44,12 +66,7 @@ def Piece(piece_name: str, creation_type: Ct = Ct.LAZY, scope: Scope = Scope.UNI
 
 def PieceFactory(piece_name: str, creation_type: Ct = Ct.LAZY, scope: Scope = Scope.UNIVERSAL):
     def inner(fn: Callable[P, _T]) -> Callable[P, _T]:
-        piece_type = signature(fn).return_annotation
-
-        if piece_type is _empty or piece_type is None:
-            raise PieceException(f"Function `{fn.__name__}` must have return type specified and cannot be None")
-
-        _track_piece(piece_type, piece_name, fn, creation_type, scope)
+        register_piece_factory(fn, piece_name, creation_type, scope)
         return fn
 
     return inner
