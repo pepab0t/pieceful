@@ -72,5 +72,5 @@ def parse_parameter(parameter: inspect.Parameter) -> Parameter:
     raise PieceIncorrectUseException("invalid use")
 
 
-def get_parameters(fn) -> Iterable[Parameter]:
+def get_parameters(fn: Callable[..., Any]) -> Iterable[Parameter]:
     return tuple(map(parse_parameter, inspect.signature(fn).parameters.values()))

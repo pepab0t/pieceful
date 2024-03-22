@@ -1,30 +1,33 @@
 from collections import defaultdict
-from typing import Any, Type
+from typing import Any, Type, TypeVar
 
 from .core import PieceData
 from .exceptions import PieceException, PieceNotFound, _NeedCalculation
 
-Storage = dict[str, dict[Type[Any], PieceData]]
+Storage = dict[str, dict[Type[Any], PieceData[Any]]]
+
+_T = TypeVar("_T")
 
 
 class Registry:
     def __init__(self):
         self.registry: Storage = defaultdict(dict)
 
-    def add(self, piece_name: str, piece_data: "PieceData"):
+    def add(self, piece_name: str, piece_data: PieceData[Any]):
         for type_ in self.registry[piece_name].keys():
             if issubclass(piece_data.type, type_):
                 raise PieceException(f"Piece {piece_data.type} is already registered as a subclass of {type_}.")
         self.registry[piece_name][piece_data.type] = piece_data
 
-    def get_object(self, piece_name: str, piece_type: Type[Any]) -> Any:
-        piece_data: PieceData
+    def _get_piece_data(self, piece_name: str, piece_type: Type[_T]) -> PieceData[_T]:
         for type_, pd in self.registry[piece_name].items():
             if issubclass(type_, piece_type):
-                piece_data = pd
-                break
+                return pd
         else:
             raise PieceNotFound(f"Piece {piece_type} not found in registry.")
+
+    def get_object(self, piece_name: str, piece_type: Type[_T]) -> _T:
+        piece_data = self._get_piece_data(piece_name, piece_type)
 
         if (instance := piece_data.get_instance()) is not None:
             return instance

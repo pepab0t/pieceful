@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from ast import Param
-from typing import Any, Callable, Iterable, Type, TypeVar
+from typing import Any, Callable, Generic, Iterable, Type, TypeVar
 
 from .entity import Parameter
 from .enums import Scope
@@ -21,23 +21,23 @@ Constructor = Callable[..., _T]
 #     return self.constructor(**{param.name: param.get() for param in self.params})
 
 
-class PieceData(ABC):
+class PieceData(ABC, Generic[_T]):
     # __slots__ = ("type", "_initializer", "_instance")
 
-    def __init__(self, type: Type[Any], constructor: Constructor) -> None:
-        self.type: Type[Any] = type
+    def __init__(self, type: Type[_T], constructor: Constructor) -> None:
+        self.type: Type[_T] = type
         self.constructor = constructor
         self.parameters: Iterable[Parameter] = get_parameters(constructor)
-        self._instance: Any = None
+        self._instance: _T | None = None
 
     @abstractmethod
-    def get_instance(self) -> Any: ...
+    def get_instance(self) -> _T | None: ...
 
     @abstractmethod
-    def initialize(self, parameters) -> Any: ...
+    def initialize(self, parameters: dict[str, Any]) -> _T: ...
 
 
-class OriginalPieceData(PieceData):
+class OriginalPieceData(PieceData[_T]):
 
     def get_instance(self):
         return None
@@ -46,7 +46,7 @@ class OriginalPieceData(PieceData):
         return self.constructor(**parameters)
 
 
-class UniversalPieceData(PieceData):
+class UniversalPieceData(PieceData[_T]):
     def get_instance(self):
         return self._instance
 
@@ -55,10 +55,10 @@ class UniversalPieceData(PieceData):
         return self._instance
 
 
-def piece_data_factory(type: Type[Any], scope: Scope, constructor: Constructor) -> PieceData:
+def piece_data_factory(type_: Type[_T], scope: Scope, constructor: Constructor) -> PieceData[_T]:
     if scope == Scope.UNIVERSAL:
-        return UniversalPieceData(type, constructor)
+        return UniversalPieceData[_T](type_, constructor)
     elif scope == Scope.ORIGINAL:
-        return OriginalPieceData(type, constructor)
+        return OriginalPieceData[_T](type_, constructor)
     else:
         raise ValueError(f"Invalid scope: {scope}")

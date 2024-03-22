@@ -47,7 +47,7 @@ def PieceFactory(piece_name: str, creation_type: Ct = Ct.LAZY, scope: Scope = Sc
         piece_type = signature(fn).return_annotation
 
         if piece_type is _empty or piece_type is None:
-            raise PieceException(f"Function `{fn}` must have return type specified and cannot be None")
+            raise PieceException(f"Function `{fn.__name__}` must have return type specified and cannot be None")
 
         _track_piece(piece_type, piece_name, fn, creation_type, scope)
         return fn
