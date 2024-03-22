@@ -1,7 +1,7 @@
 import typing as t
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 
-from pieceful_ import Piece, get_piece
+from pieceful import Piece, get_piece
 
 
 class AbstractEngine(ABC):
@@ -40,13 +40,13 @@ class PowerfulEngine(AbstractEngine):
         print("Powerful engine is running and ready to go")
 
 
-@Piece("car", wheels=4)
+@Piece("car")
 class Car(AbstractVehicle):
     def __init__(
         self,
-        wheels: int,
         engine: t.Annotated[AbstractEngine, "engine"],
         driver: t.Annotated[AbstractDriver, "lazy_driver"],
+        wheels: int = 4,
     ) -> None:
         self.wheels: int = wheels
         self.engine = engine
