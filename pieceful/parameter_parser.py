@@ -11,17 +11,21 @@ from .exceptions import (
 ANNOTATION_TYPE = type(Annotated[str, "example"])
 
 
-def create_piece_parameter(name: str, piece_name: str, piece_type: Any) -> PieceParameter:
+def create_piece_parameter(name: str, piece_type: Any, piece_name: str) -> PieceParameter:
     if not piece_name.strip():
         raise PieceException("piece_name must not be blank")
-    if isinstance(piece_type, ForwardRef):
-        # piece_type._evaluate(globals())
-        raise PieceException("ForwardRef not supported")
     return PieceParameter(name, piece_name, piece_type)
 
 
 def create_default_factory_parameter(name: str, factory: Callable[[], Any]):
     return DefaultFactoryParameter(name, factory)
+
+
+def evaluate_forward_ref(fr: ForwardRef, globals_dict: dict[str, Any]) -> Any:
+    try:
+        return fr._evaluate(globals_dict, {}, frozenset())
+    except Exception as e:
+        raise PieceException(f"Cannot evaluate forward reference: `{fr}`") from e
 
 
 def count_non_default_parameters(fn) -> int:
@@ -47,9 +51,20 @@ def parse_parameter(parameter: inspect.Parameter) -> Parameter:
 
     piece_type = annotation.__origin__
 
+    if isinstance(piece_type, ForwardRef):
+        try:
+            gd = metadata[1]
+            assert isinstance(gd, dict), "expected globals to be instance of dict"
+        except IndexError:
+            raise PieceException("globals not provided to evaluate ForwardRef")
+        except AssertionError as e:
+            raise PieceException(e.args[0])
+
+        piece_type = evaluate_forward_ref(piece_type, gd)
+
     metainfo = metadata[0]
     if isinstance(metainfo, str):
-        return create_piece_parameter(parameter.name, metainfo, piece_type)
+        return create_piece_parameter(parameter.name, piece_type, metainfo)
 
     if callable(metainfo) and count_non_default_parameters(metainfo) == 0:
         return create_default_factory_parameter(parameter.name, metainfo)
@@ -58,4 +73,4 @@ def parse_parameter(parameter: inspect.Parameter) -> Parameter:
 
 
 def get_parameters(fn) -> Iterable[Parameter]:
-    return map(parse_parameter, inspect.signature(fn).parameters.values())
+    return tuple(map(parse_parameter, inspect.signature(fn).parameters.values()))

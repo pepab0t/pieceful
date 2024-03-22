@@ -19,6 +19,9 @@ def _track_piece(
     creation_type: Ct = Ct.LAZY,
     scope: Scope = Scope.UNIVERSAL,
 ) -> None:
+    if (scope, creation_type) == (Scope.ORIGINAL, Ct.EAGER):
+        raise PieceException("ORIGINAL scope with EAGER creation strategy is illegal")
+
     piece_data = piece_data_factory(piece_type, scope, constructor)
 
     registry.add(piece_name, piece_data)
