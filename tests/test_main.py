@@ -1,26 +1,32 @@
 from typing import Annotated, Protocol, runtime_checkable
+
 import pytest
-from pieceful_ import Piece, get_piece, PieceFactory
-from pieceful_._entity import Initializer
-from pieceful_._components import _register, _pieces
-from pieceful_.exc import (
+
+from pieceful import (
     AmbiguousPieceException,
-    PieceAnnotationException,
+    CreationType,
+    ParameterNotAnnotatedException,
+    Piece,
     PieceException,
+    PieceFactory,
     PieceNotFound,
+    get_piece,
 )
+from pieceful.core import PieceData
+from pieceful.registry import registry
+
 from .models import (
     AbstractBrakes,
     AbstractEngine,
     AbstractVehicle,
-    LazyEngine,
     EagerEngine,
+    LazyEngine,
 )
 from .setup import (
-    refresh_after,
-    decorate_lazy_engine,
-    decorate_eager_engine,
     NameTypeTuple,
+    decorate_eager_engine,
+    decorate_lazy_engine,
+    refresh_after,
 )
 
 
@@ -31,25 +37,21 @@ def test_create_lazy_default(refresh_after):
     class LazyEngineDecorated(AbstractEngine):
         pass
 
-    assert LazyEngineDecorated in _register[name]
-    assert LazyEngineDecorated not in _pieces[name]
+    assert LazyEngineDecorated in registry.registry[name]
+    assert registry.registry[name][LazyEngineDecorated].get_instance() is None
 
 
 def test_create_eager_nondefault(refresh_after):
     name = "eager_engine_decorated"
 
-    @Piece(name, Piece.EAGER)
+    @Piece(name, creation_type=CreationType.EAGER)
     class EagerEngineDecorated(AbstractEngine):
         pass
 
-    assert EagerEngineDecorated in _pieces[name]
-    assert isinstance(_pieces[name][EagerEngineDecorated], EagerEngineDecorated)
-    assert EagerEngineDecorated not in _register[name]
-
-
-def test_refresh_after():
-    assert len(_pieces) == 0
-    assert len(_register) == 0
+    assert EagerEngineDecorated in registry[name]
+    assert isinstance(
+        registry[name][EagerEngineDecorated].get_instance(), EagerEngineDecorated
+    )
 
 
 def test_lazy_exists_in_pieces_after_instantiation(
@@ -58,22 +60,18 @@ def test_lazy_exists_in_pieces_after_instantiation(
     piece_name: str = decorate_lazy_engine.name
     piece_type: type = decorate_lazy_engine.type
 
-    assert isinstance(_register[piece_name][piece_type], Initializer)
-    assert piece_type not in _pieces[piece_name]
+    assert isinstance(registry[piece_name][piece_type], PieceData)
+    assert registry[piece_name][piece_type].get_instance() is None
 
     piece = get_piece(piece_name, piece_type)
 
-    piece_in_storage = _pieces[piece_name][piece_type]
+    piece_in_storage = registry[piece_name][piece_type].get_instance()
 
     assert piece_in_storage.__class__ is piece_type
-    assert piece_type in _pieces[piece_name]
-
     assert piece is piece_in_storage
 
 
-def test_get_lazy_piece_not_subclass(
-    decorate_lazy_engine: NameTypeTuple, refresh_after
-):
+def test_get_lazy_piece_same_class(decorate_lazy_engine: NameTypeTuple, refresh_after):
     N = decorate_lazy_engine.name
     T = decorate_lazy_engine.type
     assert get_piece(N, T).__class__ is T
@@ -86,7 +84,7 @@ def test_get_lazy_piece_subclass(decorate_lazy_engine: NameTypeTuple, refresh_af
     )
 
 
-def test_get_eager_piece_not_subclass(
+def test_get_eager_piece_same_class(
     decorate_eager_engine: NameTypeTuple, refresh_after
 ):
     piece_name: str = decorate_eager_engine.name
@@ -109,14 +107,16 @@ def test_ambiguous_eager_instantiation_error(
     decorate_eager_engine: NameTypeTuple, refresh_after
 ):
     with pytest.raises(AmbiguousPieceException):
-        Piece(decorate_eager_engine.name, Piece.EAGER)(decorate_eager_engine.type)
+        Piece(decorate_eager_engine.name, CreationType.EAGER)(
+            decorate_eager_engine.type
+        )
 
 
 def test_eagerly_instantiate_registered_piece_error(
     decorate_lazy_engine: NameTypeTuple, refresh_after
 ):
     with pytest.raises(AmbiguousPieceException):
-        Piece(decorate_lazy_engine.name, Piece.EAGER)(decorate_lazy_engine.type)
+        Piece(decorate_lazy_engine.name, CreationType.EAGER)(decorate_lazy_engine.type)
 
 
 def test_register_eagerly_instantiated_piece_error(
@@ -147,7 +147,7 @@ def test_get_piece_with_dependencies_lazy(
     vehicle = get_piece(piece_name, Vehicle)
 
     assert vehicle.__class__ is Vehicle
-    assert _pieces["brakes"][Brakes].__class__ is Brakes
+    assert registry["brakes"][Brakes].get_instance().__class__ is Brakes
 
 
 def test_get_piece_with_dependencies_eager(
@@ -155,11 +155,11 @@ def test_get_piece_with_dependencies_eager(
 ):
     piece_name: str = "vehicle"
 
-    @Piece("brakes", strategy=Piece.EAGER)
+    @Piece("brakes", CreationType.EAGER)
     class Brakes(AbstractBrakes):
         pass
 
-    @Piece(piece_name, strategy=Piece.EAGER)
+    @Piece(piece_name, CreationType.EAGER)
     class Vehicle(AbstractVehicle):
         def __init__(
             self,
@@ -171,7 +171,7 @@ def test_get_piece_with_dependencies_eager(
     vehicle = get_piece(piece_name, Vehicle)
 
     assert vehicle.__class__ is Vehicle
-    assert _pieces["brakes"][Brakes].__class__ is Brakes
+    assert registry["brakes"][Brakes].get_instance().__class__ is Brakes
 
 
 def test_dependency_inversion_abc(decorate_lazy_engine: NameTypeTuple, refresh_after):
@@ -205,6 +205,8 @@ def test_dependency_inversion_protocol(refresh_after):
 
     @Piece(vehicle_name)
     class Car(AbstractVehicle):
+        engine: EngineProtocol
+
         def __init__(self, engine: Annotated[EngineProtocol, engine_name]):
             self.engine = engine
 
@@ -234,6 +236,8 @@ def test_dependency_inversion_protocol_not_runtime_error(refresh_after):
 
     @Piece(vehicle_name)
     class Car(AbstractVehicle):
+        engine: EngineProtocol
+
         def __init__(self, engine: Annotated[EngineProtocol, engine_name]):
             self.engine = engine
 
@@ -244,7 +248,7 @@ def test_dependency_inversion_protocol_not_runtime_error(refresh_after):
 
 
 def test_not_dep_injection_error(decorate_lazy_engine: NameTypeTuple, refresh_after):
-    with pytest.raises(PieceAnnotationException):
+    with pytest.raises(ParameterNotAnnotatedException):
 
         @Piece("car")
         class Car(AbstractVehicle):
@@ -262,7 +266,7 @@ def test_piece_factory(refresh_after, decorate_lazy_engine: NameTypeTuple):
         def __init__(self, engine: AbstractEngine):
             self.engine = engine
 
-    @PieceFactory
+    @PieceFactory()
     def car_from_factory(engine: decorate_lazy_engine.annotation) -> Car:
         return Car(engine)
 
@@ -279,7 +283,7 @@ def test_piece_factory_inversion_return_error(
         def __init__(self, engine: AbstractEngine):
             self.engine = engine
 
-    @PieceFactory
+    @PieceFactory()
     def car_from_factory(engine: decorate_lazy_engine.annotation) -> AbstractVehicle:
         return Car(engine)
 
@@ -290,7 +294,7 @@ def test_piece_factory_injected(refresh_after):
     class PowerfulEngine(AbstractEngine):
         pass
 
-    @PieceFactory
+    @PieceFactory()
     def powerful_engine() -> AbstractEngine:
         return PowerfulEngine()
 

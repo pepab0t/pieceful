@@ -1,8 +1,10 @@
 from typing import Annotated, NamedTuple
+
 from pytest import fixture
-from pieceful_._components import _register, _pieces
-from pieceful_ import Piece
-from pieceful_.exc import AmbiguousPieceException
+
+from pieceful import AmbiguousPieceException, CreationType, Piece
+from pieceful.registry import registry
+
 from .models import EagerEngine, LazyEngine
 
 
@@ -18,8 +20,7 @@ class NameTypeTuple(NamedTuple):
 @fixture
 def refresh_after():
     yield
-    _register.clear()
-    _pieces.clear()
+    registry.clear()
 
 
 @fixture
@@ -37,7 +38,7 @@ def decorate_lazy_engine():
 def decorate_eager_engine():
     name = "eager_engine"
     try:
-        Piece(name, Piece.EAGER)(EagerEngine)
+        Piece(name, CreationType.EAGER)(EagerEngine)
     except AmbiguousPieceException:
         pass
 

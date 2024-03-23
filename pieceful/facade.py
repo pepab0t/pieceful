@@ -69,10 +69,12 @@ def Piece(piece_name: str, creation_type: Ct = Ct.LAZY, scope: Scope = Scope.UNI
 
 
 def PieceFactory(
-    piece_name: str, creation_type: Ct = Ct.LAZY, scope: Scope = Scope.UNIVERSAL
+    piece_name: str | None = None,
+    creation_type: Ct = Ct.LAZY,
+    scope: Scope = Scope.UNIVERSAL,
 ):
     def inner(fn: Callable[P, _T]) -> Callable[P, _T]:
-        register_piece_factory(fn, piece_name, creation_type, scope)
+        register_piece_factory(fn, piece_name or fn.__name__, creation_type, scope)
         return fn
 
     return inner

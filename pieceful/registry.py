@@ -2,7 +2,11 @@ from collections import defaultdict
 from typing import Any, Type, TypeVar
 
 from .core import PieceData
-from .exceptions import PieceException, PieceNotFound, _NeedCalculation
+from .exceptions import (
+    AmbiguousPieceException,
+    PieceNotFound,
+    _NeedCalculation,
+)
 
 Storage = dict[str, dict[Type[Any], PieceData[Any]]]
 
@@ -15,7 +19,7 @@ class Registry:
 
     def add(self, piece_name: str, piece_data: PieceData[Any]):
         if self._get_piece_data(piece_name, piece_data.type):
-            raise PieceException(
+            raise AmbiguousPieceException(
                 f"Piece {piece_data.type} is already registered as a subclass of {piece_data.type}."
             )
 
@@ -47,6 +51,12 @@ class Registry:
             params[param.name] = param_val
 
         return piece_data.initialize(params)
+
+    def clear(self):
+        self.registry.clear()
+
+    def __getitem__(self, item: str) -> dict[Type[Any], PieceData[Any]]:
+        return self.registry[item]
 
 
 registry: Registry = Registry()
