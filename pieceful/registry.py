@@ -1,5 +1,6 @@
 from collections import defaultdict
-from typing import Any, Type, TypeVar
+from re import Pattern
+from typing import Any, Iterator, Type, TypeVar
 
 from .core import PieceData
 from .exceptions import (
@@ -51,6 +52,21 @@ class Registry:
             params[param.name] = param_val
 
         return piece_data.initialize(params)
+
+    def get_all_objects_by_supertype(self, super_type: Type[_T]) -> Iterator[_T]:
+        for piece_name, piece_data in self.registry.items():
+            for type_ in piece_data.keys():
+                if issubclass(type_, super_type):
+                    yield self.get_object(piece_name, type_)
+
+    def get_all_objects_by_name_matching(self, name_pattern: Pattern) -> Iterator[Any]:
+        for name, data in (
+            (name, data)
+            for name, data in self.registry.items()
+            if name_pattern.search(name)
+        ):
+            for piece_data in data.values():
+                yield self.get_object(name, piece_data.type)
 
     def clear(self):
         self.registry.clear()
