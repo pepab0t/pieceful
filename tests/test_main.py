@@ -1,5 +1,6 @@
 # ruff: noqa
 
+from random import randint
 from typing import Annotated, Protocol, runtime_checkable
 
 import pytest
@@ -13,6 +14,8 @@ from pieceful import (
     PieceFactory,
     PieceNotFound,
     get_piece,
+    Scope,
+    PieceIncorrectUseException,
 )
 from pieceful.core import PieceData
 from pieceful.registry import registry
@@ -312,3 +315,123 @@ def test_piece_factory_injected(refresh_after):
 
     assert c.__class__ is Car
     assert c.engine.__class__ is PowerfulEngine
+
+
+def test_original_scope_different_instances(refresh_after):
+    @Piece("engine", scope=Scope.ORIGINAL)
+    class Engine(AbstractEngine):
+        pass
+
+    engine = get_piece("engine", AbstractEngine)
+    engine2 = get_piece("engine", AbstractEngine)
+
+    assert engine.__class__ is Engine
+    assert engine2.__class__ is Engine
+    assert engine2 is not engine
+
+
+def test_universal_scope_different_instances(refresh_after):
+    @Piece("engine", scope=Scope.UNIVERSAL)
+    class Engine(AbstractEngine):
+        pass
+
+    engine = get_piece("engine", AbstractEngine)
+    engine2 = get_piece("engine", AbstractEngine)
+
+    assert engine2 is engine
+
+
+def test_universal_scope_different_instances_with_factory(refresh_after):
+    class Engine(AbstractEngine):
+        pass
+
+    @PieceFactory(scope=Scope.UNIVERSAL)
+    def engine_factory() -> AbstractEngine:
+        return Engine()
+
+    engine = get_piece("engine_factory", AbstractEngine)
+    engine2 = get_piece("engine_factory", AbstractEngine)
+
+    assert engine2 is engine
+
+
+def test_original_scope_different_instances_with_factory(refresh_after):
+    class Engine(AbstractEngine):
+        pass
+
+    @PieceFactory(scope=Scope.ORIGINAL)
+    def engine_factory() -> AbstractEngine:
+        return Engine()
+
+    engine = get_piece("engine_factory", AbstractEngine)
+    engine2 = get_piece("engine_factory", AbstractEngine)
+
+    assert engine2 is not engine
+
+
+def test_piece_factory_name_none(refresh_after):
+    class Engine(AbstractEngine):
+        pass
+
+    @PieceFactory()
+    def engine_factory() -> AbstractEngine:
+        return Engine()
+
+    engine = get_piece("engine_factory", AbstractEngine)
+
+    assert engine is engine
+
+
+def test_piece_factory_name_specified(refresh_after):
+    class Engine(AbstractEngine):
+        pass
+
+    @PieceFactory(name="engine")
+    def engine_factory() -> AbstractEngine:
+        return Engine()
+
+    engine = get_piece("engine", AbstractEngine)
+    assert engine is engine
+
+    with pytest.raises(PieceNotFound):
+        get_piece("engine_factory", AbstractEngine)
+
+
+def test_eager_piece_with_original_scope_error(refresh_after):
+    with pytest.raises(PieceIncorrectUseException):
+
+        @Piece("engine", CreationType.EAGER, Scope.ORIGINAL)
+        class Engine(AbstractEngine):
+            pass
+
+
+def test_piece_with_default_parameter_instantiation(refresh_after):
+    @Piece("engine")
+    class Engine(AbstractEngine):
+        def __init__(self, power: int = 100):
+            self.power = power
+
+    engine = get_piece("engine", Engine)
+    assert engine.power == 100
+
+
+def test_piece_with_default_factory_parameter_instantiation(refresh_after):
+    class Engine(AbstractEngine):
+        def __init__(self, power: int):
+            self.power = power
+
+    random_power = randint(0, 100)
+
+    tracker = []
+
+    @PieceFactory()
+    def engine_factory(
+        power: Annotated[int, lambda: random_power],
+    ) -> Engine:
+        tracker.append(power)
+        return Engine(power)
+
+    engine = get_piece("engine_factory", Engine)
+    assert engine.power == random_power
+    assert len(tracker) == 1
+    assert tracker[0] == random_power

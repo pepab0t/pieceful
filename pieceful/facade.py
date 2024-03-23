@@ -60,21 +60,21 @@ def register_piece_factory(
     _track_piece(piece_type, piece_name, fn, creation_type, scope)
 
 
-def Piece(piece_name: str, creation_type: Ct = Ct.LAZY, scope: Scope = Scope.UNIVERSAL):
+def Piece(name: str, creation_type: Ct = Ct.LAZY, scope: Scope = Scope.UNIVERSAL):
     def inner(cls: Type[_T]) -> Type[_T]:
-        register_piece(cls, piece_name, creation_type, scope)
+        register_piece(cls, name, creation_type, scope)
         return cls
 
     return inner
 
 
 def PieceFactory(
-    piece_name: str | None = None,
+    name: str | None = None,
     creation_type: Ct = Ct.LAZY,
     scope: Scope = Scope.UNIVERSAL,
 ):
     def inner(fn: Callable[P, _T]) -> Callable[P, _T]:
-        register_piece_factory(fn, piece_name or fn.__name__, creation_type, scope)
+        register_piece_factory(fn, name or fn.__name__, creation_type, scope)
         return fn
 
     return inner
