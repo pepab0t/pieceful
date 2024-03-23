@@ -1,3 +1,5 @@
+# ruff: noqa
+
 from typing import Annotated, Protocol, runtime_checkable
 
 import pytest
