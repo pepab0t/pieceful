@@ -1,5 +1,6 @@
+import re
 from inspect import _empty, signature
-from typing import Callable, ParamSpec, Type, TypeVar
+from typing import Any, Callable, Iterator, ParamSpec, Type, TypeVar
 
 from .core import piece_data_factory
 from .enums import CreationType as Ct
@@ -33,6 +34,14 @@ def _track_piece(
 
 def get_piece(piece_name: str, piece_type: Type[_T]) -> _T:
     return registry.get_object(piece_name, piece_type)
+
+
+def get_pieces_by_supertype(super_type: Type[_T]) -> Iterator[_T]:
+    return registry.get_all_objects_by_supertype(super_type)
+
+
+def get_pieces_by_name(name_pattern: str) -> Iterator[Any]:
+    return registry.get_all_objects_by_name_matching(re.compile(name_pattern))
 
 
 def register_piece(
