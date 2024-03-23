@@ -21,7 +21,7 @@ class PieceNotFound(PieceException):
 class ParameterNotAnnotatedException(PieceException):
     def __init__(self, parameter: Parameter) -> None:
         super().__init__(
-            f"Parameter `{parameter.name}` is not annotated with typing.Annotated (actual type: {parameter.annotation})"
+            f"Parameter `{parameter.name}` is not annotated with `typing.Annotated` (actual type: {parameter.annotation})"
         )
 
 

@@ -15,11 +15,15 @@ class Registry:
 
     def add(self, piece_name: str, piece_data: PieceData[Any]):
         if self._get_piece_data(piece_name, piece_data.type):
-            raise PieceException(f"Piece {piece_data.type} is already registered as a subclass of {piece_data.type}.")
+            raise PieceException(
+                f"Piece {piece_data.type} is already registered as a subclass of {piece_data.type}."
+            )
 
         self.registry[piece_name][piece_data.type] = piece_data
 
-    def _get_piece_data(self, piece_name: str, piece_type: Type[_T]) -> PieceData[_T] | None:
+    def _get_piece_data(
+        self, piece_name: str, piece_type: Type[_T]
+    ) -> PieceData[_T] | None:
         for type_, pd in self.registry[piece_name].items():
             if issubclass(type_, piece_type):
                 return pd

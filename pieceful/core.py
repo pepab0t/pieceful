@@ -1,64 +1,73 @@
 from abc import ABC, abstractmethod
-from ast import Param
 from typing import Any, Callable, Generic, Iterable, Type, TypeVar
 
-from .entity import Parameter
 from .enums import Scope
 from .parameter_parser import get_parameters
+from .parameters import Parameter
 
 _T = TypeVar("_T")
 Constructor = Callable[..., _T]
 
 
-# class _Initializer:
-#     __slots__ = ("constructor", "params")
-
-#     def __init__(self, constructor: Constructor):
-#         self.constructor = constructor
-#         self.params: Iterable[Parameter] = get_parameters(constructor)
-
-# def initialize(self) -> Any:
-#     return self.constructor(**{param.name: param.get() for param in self.params})
-
-
 class PieceData(ABC, Generic[_T]):
-    # __slots__ = ("type", "_initializer", "_instance")
+    __slots__ = ("type", "_constructor", "parameters", "_instance")
 
     def __init__(self, type: Type[_T], constructor: Constructor) -> None:
         self.type: Type[_T] = type
-        self.constructor = constructor
+        self._constructor = constructor
         self.parameters: Iterable[Parameter] = get_parameters(constructor)
         self._instance: _T | None = None
 
     @abstractmethod
-    def get_instance(self) -> _T | None: ...
+    def get_instance(self) -> _T | None:
+        """Simple getter for the instance of the piece.
+
+        Returns
+        -------
+        _T | None
+            instance if it exists, otherwise None
+        """
 
     @abstractmethod
-    def initialize(self, parameters: dict[str, Any]) -> _T: ...
+    def initialize(self, parameters: dict[str, Any]) -> _T:
+        """Initializes instance from specified PieceData with help of self._constructor.
+
+        Parameters
+        ----------
+        parameters : dict[str, Any]
+            _description_
+
+        Returns
+        -------
+        _T
+            created instance
+        """
 
 
 class OriginalPieceData(PieceData[_T]):
-
-    def get_instance(self):
+    def get_instance(self) -> _T | None:
         return None
 
-    def initialize(self, parameters):
-        return self.constructor(**parameters)
+    def initialize(self, parameters) -> _T:
+        return self._constructor(**parameters)
 
 
 class UniversalPieceData(PieceData[_T]):
-    def get_instance(self):
+    def get_instance(self) -> _T | None:
         return self._instance
 
-    def initialize(self, parameters):
-        self._instance = self.constructor(**parameters)
+    def initialize(self, parameters) -> _T:
+        self._instance = self._constructor(**parameters)
         return self._instance
 
 
-def piece_data_factory(type_: Type[_T], scope: Scope, constructor: Constructor) -> PieceData[_T]:
-    if scope == Scope.UNIVERSAL:
-        return UniversalPieceData[_T](type_, constructor)
-    elif scope == Scope.ORIGINAL:
-        return OriginalPieceData[_T](type_, constructor)
-    else:
-        raise ValueError(f"Invalid scope: {scope}")
+piece_data_mapping = {
+    Scope.UNIVERSAL: UniversalPieceData,
+    Scope.ORIGINAL: OriginalPieceData,
+}
+
+
+def piece_data_factory(
+    type_: Type[_T], scope: Scope, constructor: Constructor
+) -> PieceData[_T]:
+    return piece_data_mapping[scope][_T](type_, constructor)

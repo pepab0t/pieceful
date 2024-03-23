@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Type, TypeVar
+from typing import Any, Callable, Type
 
 from .exceptions import _NeedCalculation
 
@@ -8,7 +8,10 @@ from .exceptions import _NeedCalculation
 @dataclass(frozen=True)
 class AbstractFrozenDataclass(ABC):
     def __new__(cls, *args, **kwargs):
-        if cls is AbstractFrozenDataclass or cls.__bases__[0] == AbstractFrozenDataclass:
+        if (
+            cls is AbstractFrozenDataclass
+            or cls.__bases__[0] == AbstractFrozenDataclass
+        ):
             raise TypeError("Cannot instantiate abstract class.")
         return super().__new__(cls)
 

@@ -1,17 +1,24 @@
 import inspect
-from typing import Annotated, Any, Callable, ForwardRef, Iterable, Type
+from typing import Annotated, Any, Callable, ForwardRef, Iterable
 
-from .entity import DefaultFactoryParameter, DefaultParameter, Parameter, PieceParameter
 from .exceptions import (
     ParameterNotAnnotatedException,
     PieceException,
     PieceIncorrectUseException,
 )
+from .parameters import (
+    DefaultFactoryParameter,
+    DefaultParameter,
+    Parameter,
+    PieceParameter,
+)
 
 ANNOTATION_TYPE = type(Annotated[str, "example"])
 
 
-def create_piece_parameter(name: str, piece_type: Any, piece_name: str) -> PieceParameter:
+def create_piece_parameter(
+    name: str, piece_type: Any, piece_name: str
+) -> PieceParameter:
     if not piece_name.strip():
         raise PieceException("piece_name must not be blank")
     return PieceParameter(name, piece_name, piece_type)

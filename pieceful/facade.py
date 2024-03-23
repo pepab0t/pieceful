@@ -1,10 +1,10 @@
 from inspect import _empty, signature
 from typing import Callable, ParamSpec, Type, TypeVar
 
-from .core import PieceData, piece_data_factory
+from .core import piece_data_factory
 from .enums import CreationType as Ct
 from .enums import Scope
-from .exceptions import PieceException
+from .exceptions import PieceIncorrectUseException
 from .registry import registry
 
 _T = TypeVar("_T")
@@ -19,7 +19,9 @@ def _track_piece(
     scope: Scope = Scope.UNIVERSAL,
 ) -> None:
     if (scope, creation_type) == (Scope.ORIGINAL, Ct.EAGER):
-        raise PieceException("ORIGINAL scope with EAGER creation strategy is illegal")
+        raise PieceIncorrectUseException(
+            "ORIGINAL scope with EAGER creation strategy is illegal"
+        )
 
     piece_data = piece_data_factory(piece_type, scope, constructor)
 
@@ -51,7 +53,9 @@ def register_piece_factory(
     piece_type = signature(fn).return_annotation
 
     if piece_type is _empty or piece_type is None:
-        raise PieceException(f"Function `{fn.__name__}` must have return type specified and cannot be None")
+        raise PieceIncorrectUseException(
+            f"Function `{fn.__name__}` must have return type specified and cannot be None"
+        )
 
     _track_piece(piece_type, piece_name, fn, creation_type, scope)
 
@@ -64,7 +68,9 @@ def Piece(piece_name: str, creation_type: Ct = Ct.LAZY, scope: Scope = Scope.UNI
     return inner
 
 
-def PieceFactory(piece_name: str, creation_type: Ct = Ct.LAZY, scope: Scope = Scope.UNIVERSAL):
+def PieceFactory(
+    piece_name: str, creation_type: Ct = Ct.LAZY, scope: Scope = Scope.UNIVERSAL
+):
     def inner(fn: Callable[P, _T]) -> Callable[P, _T]:
         register_piece_factory(fn, piece_name, creation_type, scope)
         return fn
