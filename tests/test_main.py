@@ -51,7 +51,7 @@ def test_create_lazy_default(refresh_after):
 def test_create_eager_nondefault(refresh_after):
     name = "eager_engine_decorated"
 
-    @Piece(name, creation_type=InitStrategy.EAGER)
+    @Piece(name, init_strategy=InitStrategy.EAGER)
     class EagerEngineDecorated(AbstractEngine):
         pass
 

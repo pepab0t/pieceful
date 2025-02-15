@@ -150,7 +150,9 @@ def register_piece_factory(
 
 
 def Piece(
-    name: str, creation_type: InitStrategy = LAZY, scope: Scope = Scope.UNIVERSAL
+    name: str,
+    init_strategy: InitStrategy = LAZY,
+    scope: Scope = Scope.UNIVERSAL,
 ):
     """This decorator registers class as a dependency.
     __init__ method's parameters must be annotated references to registered pieces.
@@ -170,7 +172,7 @@ def Piece(
     """
 
     def inner(cls: Type[_T]) -> Type[_T]:
-        register_piece(cls, name, creation_type, scope)
+        register_piece(cls, name, init_strategy, scope)
         return cls
 
     return inner
@@ -178,7 +180,7 @@ def Piece(
 
 def PieceFactory(
     name: str | None = None,
-    creation_type: InitStrategy = InitStrategy.LAZY,
+    init_strategy: InitStrategy = InitStrategy.LAZY,
     scope: Scope = Scope.UNIVERSAL,
 ):
     """This decorator registers a factory function to create dependency.\\
@@ -200,7 +202,7 @@ def PieceFactory(
     """
 
     def inner(factory: Callable[P, _T]) -> Callable[P, _T]:
-        register_piece_factory(factory, name, creation_type, scope)
+        register_piece_factory(factory, name, init_strategy, scope)
         return factory
 
     return inner
