@@ -462,3 +462,28 @@ def test_register_subtype_when_supertype_registered(refresh_after):
 
     assert get_piece("engine", Engine).__class__ is Engine
     assert get_piece("engine", PowerfulEngine).__class__ is PowerfulEngine
+
+
+def test_retrive_all_pieces_by_supertype(refresh_after):
+    @Piece("engine")
+    class PowerfulEngine:
+        pass
+
+    @Piece("wheel")
+    class Wheel:
+        pass
+
+    @Piece("lights")
+    class Lights:
+        pass
+
+    @Piece("transmition")
+    class Transmition:
+        pass
+
+    pieces = list(registry.get_all_objects_by_supertype(object))
+    assert len(pieces) == 4
+    assert all(
+        class_ in {p.__class__ for p in pieces}
+        for class_ in (PowerfulEngine, Wheel, Lights, Transmition)
+    )
