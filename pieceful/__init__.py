@@ -1,4 +1,4 @@
-from .enums import CreationType, Scope
+from .enums import InitStrategy, Scope
 from .exceptions import (
     AmbiguousPieceException,
     ParameterNotAnnotatedException,
@@ -25,6 +25,6 @@ __all__ = [
     "ParameterNotAnnotatedException",
     "AmbiguousPieceException",
     "PieceIncorrectUseException",
-    "CreationType",
+    "InitStrategy",
     "Scope",
 ]

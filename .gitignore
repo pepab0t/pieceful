@@ -5,3 +5,5 @@ foo.py
 .vscode/
 .venv/
 dist/
+
+*.lock

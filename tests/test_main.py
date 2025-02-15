@@ -8,7 +8,7 @@ import pytest
 
 from pieceful import (
     AmbiguousPieceException,
-    CreationType,
+    InitStrategy,
     ParameterNotAnnotatedException,
     Piece,
     PieceException,
@@ -51,7 +51,7 @@ def test_create_lazy_default(refresh_after):
 def test_create_eager_nondefault(refresh_after):
     name = "eager_engine_decorated"
 
-    @Piece(name, creation_type=CreationType.EAGER)
+    @Piece(name, creation_type=InitStrategy.EAGER)
     class EagerEngineDecorated(AbstractEngine):
         pass
 
@@ -114,7 +114,7 @@ def test_ambiguous_eager_instantiation_error(
     decorate_eager_engine: NameTypeTuple, refresh_after
 ):
     with pytest.raises(AmbiguousPieceException):
-        Piece(decorate_eager_engine.name, CreationType.EAGER)(
+        Piece(decorate_eager_engine.name, InitStrategy.EAGER)(
             decorate_eager_engine.type
         )
 
@@ -123,7 +123,7 @@ def test_eagerly_instantiate_registered_piece_error(
     decorate_lazy_engine: NameTypeTuple, refresh_after
 ):
     with pytest.raises(AmbiguousPieceException):
-        Piece(decorate_lazy_engine.name, CreationType.EAGER)(decorate_lazy_engine.type)
+        Piece(decorate_lazy_engine.name, InitStrategy.EAGER)(decorate_lazy_engine.type)
 
 
 def test_register_eagerly_instantiated_piece_error(
@@ -162,11 +162,11 @@ def test_get_piece_with_dependencies_eager(
 ):
     piece_name: str = "vehicle"
 
-    @Piece("brakes", CreationType.EAGER)
+    @Piece("brakes", InitStrategy.EAGER)
     class Brakes(AbstractBrakes):
         pass
 
-    @Piece(piece_name, CreationType.EAGER)
+    @Piece(piece_name, InitStrategy.EAGER)
     class Vehicle(AbstractVehicle):
         def __init__(
             self,
@@ -400,7 +400,7 @@ def test_piece_factory_name_specified(refresh_after):
 def test_eager_piece_with_original_scope_error(refresh_after):
     with pytest.raises(PieceIncorrectUseException):
 
-        @Piece("engine", CreationType.EAGER, Scope.ORIGINAL)
+        @Piece("engine", InitStrategy.EAGER, Scope.ORIGINAL)
         class Engine(AbstractEngine):
             pass
 

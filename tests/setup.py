@@ -2,7 +2,7 @@ from typing import Annotated, NamedTuple
 
 from pytest import fixture
 
-from pieceful import AmbiguousPieceException, CreationType, Piece
+from pieceful import AmbiguousPieceException, InitStrategy, Piece
 from pieceful.registry import registry
 
 from .models import EagerEngine, LazyEngine
@@ -38,7 +38,7 @@ def decorate_lazy_engine():
 def decorate_eager_engine():
     name = "eager_engine"
     try:
-        Piece(name, CreationType.EAGER)(EagerEngine)
+        Piece(name, InitStrategy.EAGER)(EagerEngine)
     except AmbiguousPieceException:
         pass
 
