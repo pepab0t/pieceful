@@ -12,7 +12,7 @@ Constructor = Callable[..., _T]
 class PieceData(ABC, Generic[_T]):
     __slots__ = ("type", "_constructor", "parameters", "_instance")
 
-    def __init__(self, type: Type[_T], constructor: Constructor) -> None:
+    def __init__(self, type: Type[_T], constructor: Constructor[_T]) -> None:
         self.type: Type[_T] = type
         self._constructor = constructor
         self.parameters: Iterable[Parameter] = get_parameters(constructor)
