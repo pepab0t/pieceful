@@ -9,7 +9,7 @@ import pytest
 from pieceful import (
     AmbiguousPieceException,
     InitStrategy,
-    ParameterNotAnnotatedException,
+    UnresolvableParameter,
     Piece,
     PieceException,
     PieceFactory,
@@ -243,10 +243,8 @@ def test_dependency_inversion_protocol_not_runtime_error(refresh_after):
 
     @Piece(vehicle_name)
     class Car(AbstractVehicle):
-        engine: EngineProtocol
-
         def __init__(self, engine: Annotated[EngineProtocol, engine_name]):
-            self.engine = engine
+            self.engine2 = engine
 
         def get_speed(self, unit: str) -> int: ...
 
@@ -255,7 +253,7 @@ def test_dependency_inversion_protocol_not_runtime_error(refresh_after):
 
 
 def test_not_dep_injection_error(decorate_lazy_engine: NameTypeTuple, refresh_after):
-    with pytest.raises(ParameterNotAnnotatedException):
+    with pytest.raises(UnresolvableParameter):
 
         @Piece("car")
         class Car(AbstractVehicle):

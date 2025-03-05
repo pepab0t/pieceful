@@ -1,7 +1,7 @@
 from .enums import InitStrategy, Scope
 from .exceptions import (
     AmbiguousPieceException,
-    ParameterNotAnnotatedException,
+    UnresolvableParameter,
     PieceException,
     PieceIncorrectUseException,
     PieceNotFound,
@@ -26,7 +26,7 @@ __all__ = [
     "get_pieces_by_supertype",
     "PieceException",
     "PieceNotFound",
-    "ParameterNotAnnotatedException",
+    "UnresolvableParameter",
     "AmbiguousPieceException",
     "PieceIncorrectUseException",
     "InitStrategy",
