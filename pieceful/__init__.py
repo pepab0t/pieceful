@@ -1,10 +1,10 @@
 from .enums import InitStrategy, Scope
 from .exceptions import (
     AmbiguousPieceException,
-    UnresolvableParameter,
     PieceException,
     PieceIncorrectUseException,
     PieceNotFound,
+    UnresolvableParameter,
 )
 from .facade import (
     Piece,
@@ -12,6 +12,7 @@ from .facade import (
     get_piece,
     get_pieces_by_name,
     get_pieces_by_supertype,
+    need,
     register_piece,
     register_piece_factory,
 )
@@ -31,4 +32,5 @@ __all__ = [
     "PieceIncorrectUseException",
     "InitStrategy",
     "Scope",
+    "need",
 ]

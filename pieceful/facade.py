@@ -3,8 +3,7 @@ from inspect import _empty, signature
 from typing import Any, Callable, Iterator, ParamSpec, Type, TypeVar
 
 from .core import piece_data_factory
-from .enums import InitStrategy
-from .enums import Scope
+from .enums import InitStrategy, Scope
 from .exceptions import PieceException, PieceIncorrectUseException
 from .registry import registry
 
@@ -32,6 +31,11 @@ def _track_piece(
 
     if creation_type == InitStrategy.EAGER:
         registry.get_object(piece_name, piece_type)
+
+
+def need(piece_type: Type[_T], piece_name: str | None = None) -> _T:
+    """This function is used to retrieeve a piece from registry."""
+    return registry.get_object(piece_name, piece_type)
 
 
 def get_piece(piece_name: str, piece_type: Type[_T]) -> _T:
