@@ -4,6 +4,7 @@ from typing import Annotated, Any, Callable, ForwardRef, Iterable
 from .exceptions import (
     PieceException,
     PieceIncorrectUseException,
+    UnresolvableParameter,
 )
 from .parameters import (
     DefaultFactoryParameter,
@@ -82,9 +83,7 @@ def parse_parameter(parameter: inspect.Parameter) -> Parameter:
         return DefaultParameter(parameter.name, parameter.default)
 
     if annotation is inspect.Parameter.empty:
-        raise PieceIncorrectUseException(
-            f"Parameter `{parameter.name}` must be annotated"
-        )
+        raise UnresolvableParameter(f"Parameter `{parameter.name}` must be annotated")
 
     return (
         _parse_annotated_parameter(parameter.name, annotation)
