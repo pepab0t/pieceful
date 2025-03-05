@@ -75,20 +75,22 @@ def _parse_annotated_parameter(param_name: str, annotation) -> Parameter:
     raise PieceIncorrectUseException("invalid use")
 
 
-def _parse_typed_parameter(param_name: str, annotation: type) -> Parameter:
-    return _create_piece_parameter(param_name, annotation, annotation.__name__)
-
-
 def parse_parameter(parameter: inspect.Parameter) -> Parameter:
     annotation = parameter.annotation
 
     if parameter.default is not inspect.Parameter.empty:
         return DefaultParameter(parameter.name, parameter.default)
 
-    if type(annotation) is ANNOTATION_TYPE:
-        return _parse_annotated_parameter(parameter.name, annotation)
-    else:
-        return _parse_typed_parameter(parameter.name, annotation)
+    if annotation is inspect.Parameter.empty:
+        raise PieceIncorrectUseException(
+            f"Parameter `{parameter.name}` must be annotated"
+        )
+
+    return (
+        _parse_annotated_parameter(parameter.name, annotation)
+        if type(annotation) is ANNOTATION_TYPE
+        else _create_piece_parameter(parameter.name, annotation, annotation.__name__)
+    )
 
 
 def get_parameters(fn: Callable[..., Any]) -> Iterable[Parameter]:
