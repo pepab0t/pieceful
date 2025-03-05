@@ -115,7 +115,7 @@ def register_piece(
 
 def register_piece_factory(
     factory: Callable[..., _T],
-    name: str | None,
+    name: str | None = None,
     creation_type: InitStrategy = LAZY,
     scope: Scope = Scope.UNIVERSAL,
 ) -> None:
@@ -156,7 +156,7 @@ def register_piece_factory(
 
 
 def Piece(
-    name: str,
+    name: str | None = None,
     init_strategy: InitStrategy = LAZY,
     scope: Scope = Scope.UNIVERSAL,
 ):
