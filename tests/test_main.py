@@ -17,6 +17,7 @@ from pieceful import (
     Scope,
     PieceIncorrectUseException,
     register_piece,
+    PieceException,
 )
 from pieceful.core import PieceData
 from pieceful.registry import registry
@@ -262,7 +263,7 @@ def test_piece_factory(decorate_lazy_engine: NameTypeTuple):
     def car_from_factory(engine: decorate_lazy_engine.annotation) -> Car:
         return Car(engine)
 
-    car = get_piece(car_from_factory.__name__, AbstractVehicle)
+    car = get_piece("Car", AbstractVehicle)
 
     assert isinstance(car, (AbstractVehicle, Car))
     assert isinstance(car.engine, (AbstractEngine, decorate_lazy_engine.type))  # type: ignore
@@ -277,7 +278,7 @@ def test_piece_factory_inversion_return_error(decorate_lazy_engine: NameTypeTupl
     def car_from_factory(engine: decorate_lazy_engine.annotation) -> AbstractVehicle:
         return Car(engine)
 
-    assert get_piece("car_from_factory", AbstractVehicle).__class__ is Car
+    assert get_piece("AbstractVehicle", AbstractVehicle).__class__ is Car
 
 
 def test_piece_factory_injected():
@@ -290,9 +291,7 @@ def test_piece_factory_injected():
 
     @Piece("car")
     class Car(AbstractVehicle):
-        def __init__(
-            self, engine: Annotated[AbstractEngine, "powerful_engine"]
-        ) -> None:
+        def __init__(self, engine: Annotated[AbstractEngine, "AbstractEngine"]) -> None:
             super().__init__()
             self.engine = engine
 
@@ -332,8 +331,8 @@ def test_universal_scope_different_instances_with_factory():
     def engine_factory() -> AbstractEngine:
         return Engine()
 
-    engine = get_piece("engine_factory", AbstractEngine)
-    engine2 = get_piece("engine_factory", AbstractEngine)
+    engine = get_piece(AbstractEngine.__name__, AbstractEngine)
+    engine2 = get_piece(AbstractEngine.__name__, AbstractEngine)
 
     assert engine2 is engine
 
@@ -346,8 +345,8 @@ def test_original_scope_different_instances_with_factory():
     def engine_factory() -> AbstractEngine:
         return Engine()
 
-    engine = get_piece("engine_factory", AbstractEngine)
-    engine2 = get_piece("engine_factory", AbstractEngine)
+    engine = get_piece(AbstractEngine.__name__, AbstractEngine)
+    engine2 = get_piece(AbstractEngine.__name__, AbstractEngine)
 
     assert engine2 is not engine
 
@@ -360,7 +359,7 @@ def test_piece_factory_name_none():
     def engine_factory() -> AbstractEngine:
         return Engine()
 
-    engine = get_piece("engine_factory", AbstractEngine)
+    engine = get_piece(AbstractEngine.__name__, AbstractEngine)
 
     assert engine is engine
 
@@ -414,7 +413,7 @@ def test_piece_with_default_factory_parameter_instantiation():
         tracker.append(power)
         return Engine(power)
 
-    engine = get_piece("engine_factory", Engine)
+    engine = get_piece(Engine.__name__, Engine)
     assert engine.power == random_power
     assert len(tracker) == 1
     assert tracker[0] == random_power
@@ -470,3 +469,11 @@ def test_retrive_all_pieces_by_supertype():
         class_ in {p.__class__ for p in pieces}
         for class_ in (PowerfulEngine, Wheel, Lights, Transmition)
     )
+
+
+def test_name_cannot_be_empty_string():
+    with pytest.raises(PieceException):
+
+        @Piece("")
+        class Engine(AbstractEngine):
+            pass

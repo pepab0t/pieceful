@@ -12,7 +12,7 @@ from .facade import (
     get_piece,
     get_pieces_by_name,
     get_pieces_by_supertype,
-    need,
+    provide,
     register_piece,
     register_piece_factory,
 )
@@ -32,5 +32,5 @@ __all__ = [
     "PieceIncorrectUseException",
     "InitStrategy",
     "Scope",
-    "need",
+    "provide",
 ]

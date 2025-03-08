@@ -33,8 +33,8 @@ def _track_piece(
         registry.get_object(piece_name, piece_type)
 
 
-def need(piece_type: Type[_T], piece_name: str | None = None) -> _T:
-    """This function is used to retrieeve a piece from registry."""
+def provide(piece_type: Type[_T], piece_name: str | None = None) -> _T:
+    """This function is used to retrieve a piece from registry."""
     return registry.get_object(piece_name, piece_type)
 
 
@@ -152,7 +152,7 @@ def register_piece_factory(
 
     _track_piece(
         piece_type,
-        name if name is not None else factory.__name__,
+        name if name is not None else piece_type.__name__,
         factory,
         creation_type,
         scope,
