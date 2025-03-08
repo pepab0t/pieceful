@@ -17,7 +17,7 @@ class NameTypeTuple(NamedTuple):
         return Annotated[self.type, self.name]
 
 
-@fixture
+@fixture(autouse=True)
 def refresh_after():
     yield
     registry.clear()

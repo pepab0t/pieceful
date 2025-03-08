@@ -2,9 +2,9 @@ import inspect
 from typing import Annotated, Any, Callable, ForwardRef, Iterable
 
 from .exceptions import (
-    ParameterNotAnnotatedException,
     PieceException,
     PieceIncorrectUseException,
+    UnresolvableParameter,
 )
 from .parameters import (
     DefaultFactoryParameter,
@@ -16,7 +16,7 @@ from .parameters import (
 ANNOTATION_TYPE = type(Annotated[str, "example"])
 
 
-def create_piece_parameter(
+def _create_piece_parameter(
     name: str, piece_type: Any, piece_name: str
 ) -> PieceParameter:
     if not piece_name.strip():
@@ -24,15 +24,15 @@ def create_piece_parameter(
     return PieceParameter(name, piece_name, piece_type)
 
 
-def create_default_factory_parameter(name: str, factory: Callable[[], Any]):
+def _create_default_factory_parameter(name: str, factory: Callable[[], Any]):
     return DefaultFactoryParameter(name, factory)
 
 
-def evaluate_forward_ref(fr: ForwardRef, globals_dict: dict[str, Any]) -> Any:
+def _evaluate_forward_ref(fr: ForwardRef, globals_dict: dict[str, Any]) -> Any:
     raise PieceException("ForwardRef is not supported")
 
 
-def count_non_default_parameters(fn) -> int:
+def _count_non_default_parameters(fn) -> int:
     try:
         parameters = inspect.signature(fn).parameters.values()
     except ValueError:
@@ -45,15 +45,7 @@ def count_non_default_parameters(fn) -> int:
     return sum(1 for _ in filtered)
 
 
-def parse_parameter(parameter: inspect.Parameter) -> Parameter:
-    annotation = parameter.annotation
-
-    if parameter.default is not inspect.Parameter.empty:
-        return DefaultParameter(parameter.name, parameter.default)
-
-    if type(annotation) is not ANNOTATION_TYPE:
-        raise ParameterNotAnnotatedException(parameter)
-
+def _parse_annotated_parameter(param_name: str, annotation) -> Parameter:
     metadata = annotation.__metadata__
     if len(metadata) < 1:
         raise PieceIncorrectUseException("piece metadata not specified in Annotated[]")
@@ -69,17 +61,39 @@ def parse_parameter(parameter: inspect.Parameter) -> Parameter:
         except AssertionError as e:
             raise PieceException(e.args[0])
 
-        piece_type = evaluate_forward_ref(piece_type, gd)
+        piece_type = _evaluate_forward_ref(piece_type, gd)
 
-    metainfo = metadata[0]
-    if isinstance(metainfo, str):
-        return create_piece_parameter(parameter.name, piece_type, metainfo)
+    name_or_factory = metadata[0]
+    if isinstance(name_or_factory, str):
+        return _create_piece_parameter(param_name, piece_type, name_or_factory)
 
-    if callable(metainfo) and count_non_default_parameters(metainfo) == 0:
-        return create_default_factory_parameter(parameter.name, metainfo)
+    if (
+        callable(name_or_factory)
+        and _count_non_default_parameters(name_or_factory) == 0
+    ):
+        return _create_default_factory_parameter(param_name, name_or_factory)
 
     raise PieceIncorrectUseException("invalid use")
 
 
+def parse_parameter(parameter: inspect.Parameter) -> Parameter:
+    annotation = parameter.annotation
+
+    if parameter.default is not inspect.Parameter.empty:
+        return DefaultParameter(parameter.name, parameter.default)
+
+    if annotation is inspect.Parameter.empty:
+        raise UnresolvableParameter(f"Parameter `{parameter.name}` must be annotated")
+
+    return (
+        _parse_annotated_parameter(parameter.name, annotation)
+        if type(annotation) is ANNOTATION_TYPE
+        else _create_piece_parameter(parameter.name, annotation, annotation.__name__)
+    )
+
+
 def get_parameters(fn: Callable[..., Any]) -> Iterable[Parameter]:
     return tuple(map(parse_parameter, inspect.signature(fn).parameters.values()))
+
+
+__all__ = ["get_parameters"]

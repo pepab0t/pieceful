@@ -19,6 +19,3 @@ class EagerEngine(AbstractEngine):
 
 class LazyEngine(AbstractEngine):
     pass
-
-
-# class
