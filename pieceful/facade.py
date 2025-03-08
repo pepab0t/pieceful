@@ -3,9 +3,8 @@ from inspect import _empty, signature
 from typing import Any, Callable, Iterator, ParamSpec, Type, TypeVar
 
 from .core import piece_data_factory
-from .enums import InitStrategy
-from .enums import Scope
-from .exceptions import PieceIncorrectUseException
+from .enums import InitStrategy, Scope
+from .exceptions import PieceException, PieceIncorrectUseException
 from .registry import registry
 
 _T = TypeVar("_T")
@@ -25,13 +24,18 @@ def _track_piece(
         raise PieceIncorrectUseException(
             "ORIGINAL scope with EAGER creation strategy is illegal"
         )
+    if not piece_name:
+        raise PieceException("Piece name cannot be empty string.")
 
-    piece_data = piece_data_factory(piece_type, scope, constructor)
-
-    registry.add(piece_name, piece_data)
+    registry.add(piece_name, piece_data_factory(piece_type, scope, constructor))
 
     if creation_type == InitStrategy.EAGER:
         registry.get_object(piece_name, piece_type)
+
+
+def provide(piece_type: Type[_T], piece_name: str | None = None) -> _T:
+    """This function is used to retrieve a piece from registry."""
+    return registry.get_object(piece_name, piece_type)
 
 
 def get_piece(piece_name: str, piece_type: Type[_T]) -> _T:
@@ -84,7 +88,7 @@ def get_pieces_by_name(name_pattern: str | re.Pattern[str]) -> Iterator[Any]:
 
 def register_piece(
     cls: Type[_T],
-    piece_name: str,
+    piece_name: str | None = None,
     creation_type: InitStrategy = InitStrategy.LAZY,
     scope: Scope = Scope.UNIVERSAL,
 ) -> None:
@@ -104,12 +108,18 @@ def register_piece(
         `ORIGINAL` - piece is created only once and is shared among all usages\\
         `UNIVERSAL` - piece is created for each usage separately
     """
-    _track_piece(cls, piece_name, cls, creation_type, scope)
+    _track_piece(
+        cls,
+        piece_name if piece_name is not None else cls.__name__,
+        cls,
+        creation_type,
+        scope,
+    )
 
 
 def register_piece_factory(
     factory: Callable[..., _T],
-    name: str | None,
+    name: str | None = None,
     creation_type: InitStrategy = LAZY,
     scope: Scope = Scope.UNIVERSAL,
 ) -> None:
@@ -142,7 +152,7 @@ def register_piece_factory(
 
     _track_piece(
         piece_type,
-        name if name is not None else factory.__name__,
+        name if name is not None else piece_type.__name__,
         factory,
         creation_type,
         scope,
@@ -150,7 +160,7 @@ def register_piece_factory(
 
 
 def Piece(
-    name: str,
+    name: str | None = None,
     init_strategy: InitStrategy = LAZY,
     scope: Scope = Scope.UNIVERSAL,
 ):

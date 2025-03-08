@@ -18,10 +18,12 @@ class PieceNotFound(PieceException):
     pass
 
 
-class ParameterNotAnnotatedException(PieceException):
-    def __init__(self, parameter: Parameter) -> None:
+class UnresolvableParameter(PieceException):
+    def __init__(self, description: Parameter | str) -> None:
         super().__init__(
-            f"Parameter `{parameter.name}` is not annotated with `typing.Annotated` (actual type: {parameter.annotation})"
+            description
+            if isinstance(description, str)
+            else f"Parameter `{description.name}` is not annotated with `typing.Annotated` (actual type: {description.annotation})"
         )
 
 

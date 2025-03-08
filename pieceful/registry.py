@@ -14,6 +14,10 @@ Storage = dict[str, dict[Type[Any], PieceData[Any]]]
 _T = TypeVar("_T")
 
 
+def resolve_name(name: str | None, piece_type: Type[_T]) -> str:
+    return name if name is not None else piece_type.__name__
+
+
 class Registry:
     def __init__(self):
         self.registry: Storage = defaultdict(dict)
@@ -39,8 +43,10 @@ class Registry:
                 return pd
         return None
 
-    def get_object(self, piece_name: str, piece_type: Type[_T]) -> _T:
-        piece_data = self._get_piece_data(piece_name, piece_type)
+    def get_object(self, piece_name: str | None, piece_type: Type[_T]) -> _T:
+        piece_data = self._get_piece_data(
+            resolve_name(piece_name, piece_type), piece_type
+        )
 
         if piece_data is None:
             raise PieceNotFound(f"Piece {piece_type} not found in registry.")

@@ -9,15 +9,15 @@ import pytest
 from pieceful import (
     AmbiguousPieceException,
     InitStrategy,
-    ParameterNotAnnotatedException,
+    UnresolvableParameter,
     Piece,
-    PieceException,
     PieceFactory,
     PieceNotFound,
     get_piece,
     Scope,
     PieceIncorrectUseException,
     register_piece,
+    PieceException,
 )
 from pieceful.core import PieceData
 from pieceful.registry import registry
@@ -26,8 +26,6 @@ from .models import (
     AbstractBrakes,
     AbstractEngine,
     AbstractVehicle,
-    EagerEngine,
-    LazyEngine,
 )
 from .setup import (
     NameTypeTuple,
@@ -37,7 +35,7 @@ from .setup import (
 )
 
 
-def test_create_lazy_default(refresh_after):
+def test_create_lazy_default():
     name: str = "lazy_engine_decorated"
 
     @Piece(name)
@@ -48,7 +46,7 @@ def test_create_lazy_default(refresh_after):
     assert registry.registry[name][LazyEngineDecorated].get_instance() is None
 
 
-def test_create_eager_nondefault(refresh_after):
+def test_create_eager_nondefault():
     name = "eager_engine_decorated"
 
     @Piece(name, init_strategy=InitStrategy.EAGER)
@@ -61,9 +59,7 @@ def test_create_eager_nondefault(refresh_after):
     )
 
 
-def test_lazy_exists_in_pieces_after_instantiation(
-    decorate_lazy_engine: NameTypeTuple, refresh_after
-):
+def test_lazy_exists_in_pieces_after_instantiation(decorate_lazy_engine: NameTypeTuple):
     piece_name: str = decorate_lazy_engine.name
     piece_type: type = decorate_lazy_engine.type
 
@@ -78,41 +74,37 @@ def test_lazy_exists_in_pieces_after_instantiation(
     assert piece is piece_in_storage
 
 
-def test_get_lazy_piece_same_class(decorate_lazy_engine: NameTypeTuple, refresh_after):
+def test_get_lazy_piece_same_class(decorate_lazy_engine: NameTypeTuple):
     N = decorate_lazy_engine.name
     T = decorate_lazy_engine.type
     assert get_piece(N, T).__class__ is T
 
 
-def test_get_lazy_piece_subclass(decorate_lazy_engine: NameTypeTuple, refresh_after):
+def test_get_lazy_piece_subclass(decorate_lazy_engine: NameTypeTuple):
     assert (
         get_piece(decorate_lazy_engine.name, AbstractEngine).__class__
         is decorate_lazy_engine.type
     )
 
 
-def test_get_eager_piece_same_class(
-    decorate_eager_engine: NameTypeTuple, refresh_after
-):
+def test_get_eager_piece_same_class(decorate_eager_engine: NameTypeTuple):
     piece_name: str = decorate_eager_engine.name
     piece_type: type = decorate_eager_engine.type
     assert isinstance(get_piece(piece_name, piece_type), piece_type)
 
 
-def test_get_eager_piece_subclass(decorate_eager_engine: NameTypeTuple, refresh_after):
+def test_get_eager_piece_subclass(decorate_eager_engine: NameTypeTuple):
     piece_name: str = decorate_eager_engine.name
     piece_type: type = decorate_eager_engine.type
     assert isinstance(get_piece(piece_name, AbstractEngine), piece_type)
 
 
-def test_ambiguous_register_error(decorate_lazy_engine: NameTypeTuple, refresh_after):
+def test_ambiguous_register_error(decorate_lazy_engine: NameTypeTuple):
     with pytest.raises(AmbiguousPieceException):
         Piece(decorate_lazy_engine.name)(decorate_lazy_engine.type)
 
 
-def test_ambiguous_eager_instantiation_error(
-    decorate_eager_engine: NameTypeTuple, refresh_after
-):
+def test_ambiguous_eager_instantiation_error(decorate_eager_engine: NameTypeTuple):
     with pytest.raises(AmbiguousPieceException):
         Piece(decorate_eager_engine.name, InitStrategy.EAGER)(
             decorate_eager_engine.type
@@ -120,22 +112,20 @@ def test_ambiguous_eager_instantiation_error(
 
 
 def test_eagerly_instantiate_registered_piece_error(
-    decorate_lazy_engine: NameTypeTuple, refresh_after
+    decorate_lazy_engine: NameTypeTuple,
 ):
     with pytest.raises(AmbiguousPieceException):
         Piece(decorate_lazy_engine.name, InitStrategy.EAGER)(decorate_lazy_engine.type)
 
 
 def test_register_eagerly_instantiated_piece_error(
-    decorate_eager_engine: NameTypeTuple, refresh_after
+    decorate_eager_engine: NameTypeTuple,
 ):
     with pytest.raises(AmbiguousPieceException):
         Piece(decorate_eager_engine.name)(decorate_eager_engine.type)
 
 
-def test_get_piece_with_dependencies_lazy(
-    decorate_lazy_engine: NameTypeTuple, refresh_after
-):
+def test_get_piece_with_dependencies_lazy(decorate_lazy_engine: NameTypeTuple):
     piece_name: str = "vehicle"
 
     @Piece("brakes")
@@ -157,9 +147,7 @@ def test_get_piece_with_dependencies_lazy(
     assert registry["brakes"][Brakes].get_instance().__class__ is Brakes
 
 
-def test_get_piece_with_dependencies_eager(
-    decorate_eager_engine: NameTypeTuple, refresh_after
-):
+def test_get_piece_with_dependencies_eager(decorate_eager_engine: NameTypeTuple):
     piece_name: str = "vehicle"
 
     @Piece("brakes", InitStrategy.EAGER)
@@ -181,7 +169,7 @@ def test_get_piece_with_dependencies_eager(
     assert registry["brakes"][Brakes].get_instance().__class__ is Brakes
 
 
-def test_dependency_inversion_abc(decorate_lazy_engine: NameTypeTuple, refresh_after):
+def test_dependency_inversion_abc(decorate_lazy_engine: NameTypeTuple):
     vehicle_name: str = "vehicle"
 
     @Piece(vehicle_name)
@@ -197,7 +185,7 @@ def test_dependency_inversion_abc(decorate_lazy_engine: NameTypeTuple, refresh_a
     assert isinstance(vehicle.engine, decorate_lazy_engine.type)  # type: ignore
 
 
-def test_dependency_inversion_protocol(refresh_after):
+def test_dependency_inversion_protocol():
     vehicle_name: str = "car"
     engine_name: str = "super_engine"
 
@@ -229,7 +217,7 @@ def test_dependency_inversion_protocol(refresh_after):
     assert isinstance(vehicle.engine, SuperEngine)
 
 
-def test_dependency_inversion_protocol_not_runtime_error(refresh_after):
+def test_dependency_inversion_protocol_not_runtime_error():
     vehicle_name: str = "car"
     engine_name: str = "super_engine"
 
@@ -243,10 +231,8 @@ def test_dependency_inversion_protocol_not_runtime_error(refresh_after):
 
     @Piece(vehicle_name)
     class Car(AbstractVehicle):
-        engine: EngineProtocol
-
         def __init__(self, engine: Annotated[EngineProtocol, engine_name]):
-            self.engine = engine
+            self.engine2 = engine
 
         def get_speed(self, unit: str) -> int: ...
 
@@ -254,8 +240,8 @@ def test_dependency_inversion_protocol_not_runtime_error(refresh_after):
         get_piece(vehicle_name, Car)
 
 
-def test_not_dep_injection_error(decorate_lazy_engine: NameTypeTuple, refresh_after):
-    with pytest.raises(ParameterNotAnnotatedException):
+def test_not_dep_injection_error(decorate_lazy_engine: NameTypeTuple):
+    with pytest.raises(UnresolvableParameter):
 
         @Piece("car")
         class Car(AbstractVehicle):
@@ -263,12 +249,12 @@ def test_not_dep_injection_error(decorate_lazy_engine: NameTypeTuple, refresh_af
                 pass
 
 
-def test_piece_not_found_error(refresh_after):
+def test_piece_not_found_error():
     with pytest.raises(PieceNotFound):
         get_piece("car_not_found", AbstractVehicle)
 
 
-def test_piece_factory(refresh_after, decorate_lazy_engine: NameTypeTuple):
+def test_piece_factory(decorate_lazy_engine: NameTypeTuple):
     class Car(AbstractVehicle):
         def __init__(self, engine: AbstractEngine):
             self.engine = engine
@@ -277,15 +263,13 @@ def test_piece_factory(refresh_after, decorate_lazy_engine: NameTypeTuple):
     def car_from_factory(engine: decorate_lazy_engine.annotation) -> Car:
         return Car(engine)
 
-    car = get_piece(car_from_factory.__name__, AbstractVehicle)
+    car = get_piece("Car", AbstractVehicle)
 
     assert isinstance(car, (AbstractVehicle, Car))
     assert isinstance(car.engine, (AbstractEngine, decorate_lazy_engine.type))  # type: ignore
 
 
-def test_piece_factory_inversion_return_error(
-    refresh_after, decorate_lazy_engine: NameTypeTuple
-):
+def test_piece_factory_inversion_return_error(decorate_lazy_engine: NameTypeTuple):
     class Car(AbstractVehicle):
         def __init__(self, engine: AbstractEngine):
             self.engine = engine
@@ -294,10 +278,10 @@ def test_piece_factory_inversion_return_error(
     def car_from_factory(engine: decorate_lazy_engine.annotation) -> AbstractVehicle:
         return Car(engine)
 
-    assert get_piece("car_from_factory", AbstractVehicle).__class__ is Car
+    assert get_piece("AbstractVehicle", AbstractVehicle).__class__ is Car
 
 
-def test_piece_factory_injected(refresh_after):
+def test_piece_factory_injected():
     class PowerfulEngine(AbstractEngine):
         pass
 
@@ -307,9 +291,7 @@ def test_piece_factory_injected(refresh_after):
 
     @Piece("car")
     class Car(AbstractVehicle):
-        def __init__(
-            self, engine: Annotated[AbstractEngine, "powerful_engine"]
-        ) -> None:
+        def __init__(self, engine: Annotated[AbstractEngine, "AbstractEngine"]) -> None:
             super().__init__()
             self.engine = engine
 
@@ -319,7 +301,7 @@ def test_piece_factory_injected(refresh_after):
     assert c.engine.__class__ is PowerfulEngine
 
 
-def test_original_scope_different_instances(refresh_after):
+def test_original_scope_different_instances():
     @Piece("engine", scope=Scope.ORIGINAL)
     class Engine(AbstractEngine):
         def __init__(self, created: Annotated[int, time.perf_counter_ns]):
@@ -330,7 +312,7 @@ def test_original_scope_different_instances(refresh_after):
     assert len(engines) == 10
 
 
-def test_universal_scope_same_instances(refresh_after):
+def test_universal_scope_same_instances():
     @Piece("engine", scope=Scope.UNIVERSAL)
     class Engine(AbstractEngine):
         def __init__(self, created: Annotated[int, time.perf_counter_ns]):
@@ -341,7 +323,7 @@ def test_universal_scope_same_instances(refresh_after):
     assert len(engines) == 1
 
 
-def test_universal_scope_different_instances_with_factory(refresh_after):
+def test_universal_scope_different_instances_with_factory():
     class Engine(AbstractEngine):
         pass
 
@@ -349,13 +331,13 @@ def test_universal_scope_different_instances_with_factory(refresh_after):
     def engine_factory() -> AbstractEngine:
         return Engine()
 
-    engine = get_piece("engine_factory", AbstractEngine)
-    engine2 = get_piece("engine_factory", AbstractEngine)
+    engine = get_piece(AbstractEngine.__name__, AbstractEngine)
+    engine2 = get_piece(AbstractEngine.__name__, AbstractEngine)
 
     assert engine2 is engine
 
 
-def test_original_scope_different_instances_with_factory(refresh_after):
+def test_original_scope_different_instances_with_factory():
     class Engine(AbstractEngine):
         pass
 
@@ -363,13 +345,13 @@ def test_original_scope_different_instances_with_factory(refresh_after):
     def engine_factory() -> AbstractEngine:
         return Engine()
 
-    engine = get_piece("engine_factory", AbstractEngine)
-    engine2 = get_piece("engine_factory", AbstractEngine)
+    engine = get_piece(AbstractEngine.__name__, AbstractEngine)
+    engine2 = get_piece(AbstractEngine.__name__, AbstractEngine)
 
     assert engine2 is not engine
 
 
-def test_piece_factory_name_none(refresh_after):
+def test_piece_factory_name_none():
     class Engine(AbstractEngine):
         pass
 
@@ -377,12 +359,12 @@ def test_piece_factory_name_none(refresh_after):
     def engine_factory() -> AbstractEngine:
         return Engine()
 
-    engine = get_piece("engine_factory", AbstractEngine)
+    engine = get_piece(AbstractEngine.__name__, AbstractEngine)
 
     assert engine is engine
 
 
-def test_piece_factory_name_specified(refresh_after):
+def test_piece_factory_name_specified():
     class Engine(AbstractEngine):
         pass
 
@@ -397,7 +379,7 @@ def test_piece_factory_name_specified(refresh_after):
         get_piece("engine_factory", AbstractEngine)
 
 
-def test_eager_piece_with_original_scope_error(refresh_after):
+def test_eager_piece_with_original_scope_error():
     with pytest.raises(PieceIncorrectUseException):
 
         @Piece("engine", InitStrategy.EAGER, Scope.ORIGINAL)
@@ -405,7 +387,7 @@ def test_eager_piece_with_original_scope_error(refresh_after):
             pass
 
 
-def test_piece_with_default_parameter_instantiation(refresh_after):
+def test_piece_with_default_parameter_instantiation():
     @Piece("engine")
     class Engine(AbstractEngine):
         def __init__(self, power: int = 100):
@@ -415,7 +397,7 @@ def test_piece_with_default_parameter_instantiation(refresh_after):
     assert engine.power == 100
 
 
-def test_piece_with_default_factory_parameter_instantiation(refresh_after):
+def test_piece_with_default_factory_parameter_instantiation():
     class Engine(AbstractEngine):
         def __init__(self, power: int):
             self.power = power
@@ -431,13 +413,13 @@ def test_piece_with_default_factory_parameter_instantiation(refresh_after):
         tracker.append(power)
         return Engine(power)
 
-    engine = get_piece("engine_factory", Engine)
+    engine = get_piece(Engine.__name__, Engine)
     assert engine.power == random_power
     assert len(tracker) == 1
     assert tracker[0] == random_power
 
 
-def test_register_supertype_when_subtype_registered(refresh_after):
+def test_register_supertype_when_subtype_registered():
     class Engine:
         pass
 
@@ -451,7 +433,7 @@ def test_register_supertype_when_subtype_registered(refresh_after):
     assert get_piece("engine", PowerfulEngine).__class__ is PowerfulEngine
 
 
-def test_register_subtype_when_supertype_registered(refresh_after):
+def test_register_subtype_when_supertype_registered():
     @Piece("engine")
     class Engine:
         pass
@@ -464,7 +446,7 @@ def test_register_subtype_when_supertype_registered(refresh_after):
     assert get_piece("engine", PowerfulEngine).__class__ is PowerfulEngine
 
 
-def test_retrive_all_pieces_by_supertype(refresh_after):
+def test_retrive_all_pieces_by_supertype():
     @Piece("engine")
     class PowerfulEngine:
         pass
@@ -487,3 +469,11 @@ def test_retrive_all_pieces_by_supertype(refresh_after):
         class_ in {p.__class__ for p in pieces}
         for class_ in (PowerfulEngine, Wheel, Lights, Transmition)
     )
+
+
+def test_name_cannot_be_empty_string():
+    with pytest.raises(PieceException):
+
+        @Piece("")
+        class Engine(AbstractEngine):
+            pass
