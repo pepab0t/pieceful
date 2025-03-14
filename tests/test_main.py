@@ -54,9 +54,7 @@ def test_create_eager_nondefault():
         pass
 
     assert EagerEngineDecorated in registry[name]
-    assert isinstance(
-        registry[name][EagerEngineDecorated].get_instance(), EagerEngineDecorated
-    )
+    assert isinstance(registry[name][EagerEngineDecorated].get_instance(), EagerEngineDecorated)
 
 
 def test_lazy_exists_in_pieces_after_instantiation(decorate_lazy_engine: NameTypeTuple):
@@ -81,10 +79,7 @@ def test_get_lazy_piece_same_class(decorate_lazy_engine: NameTypeTuple):
 
 
 def test_get_lazy_piece_subclass(decorate_lazy_engine: NameTypeTuple):
-    assert (
-        get_piece(decorate_lazy_engine.name, AbstractEngine).__class__
-        is decorate_lazy_engine.type
-    )
+    assert get_piece(decorate_lazy_engine.name, AbstractEngine).__class__ is decorate_lazy_engine.type
 
 
 def test_get_eager_piece_same_class(decorate_eager_engine: NameTypeTuple):
@@ -106,9 +101,7 @@ def test_ambiguous_register_error(decorate_lazy_engine: NameTypeTuple):
 
 def test_ambiguous_eager_instantiation_error(decorate_eager_engine: NameTypeTuple):
     with pytest.raises(AmbiguousPieceException):
-        Piece(decorate_eager_engine.name, InitStrategy.EAGER)(
-            decorate_eager_engine.type
-        )
+        Piece(decorate_eager_engine.name, InitStrategy.EAGER)(decorate_eager_engine.type)
 
 
 def test_eagerly_instantiate_registered_piece_error(
@@ -174,9 +167,7 @@ def test_dependency_inversion_abc(decorate_lazy_engine: NameTypeTuple):
 
     @Piece(vehicle_name)
     class Vehicle(AbstractVehicle):
-        def __init__(
-            self, engine: Annotated[AbstractEngine, decorate_lazy_engine.name]
-        ) -> None:
+        def __init__(self, engine: Annotated[AbstractEngine, decorate_lazy_engine.name]) -> None:
             self.engine = engine
 
     vehicle = get_piece(vehicle_name, AbstractVehicle)
@@ -263,7 +254,7 @@ def test_piece_factory(decorate_lazy_engine: NameTypeTuple):
     def car_from_factory(engine: decorate_lazy_engine.annotation) -> Car:
         return Car(engine)
 
-    car = get_piece("Car", AbstractVehicle)
+    car = get_piece("car_from_factory", AbstractVehicle)
 
     assert isinstance(car, (AbstractVehicle, Car))
     assert isinstance(car.engine, (AbstractEngine, decorate_lazy_engine.type))  # type: ignore
@@ -278,7 +269,7 @@ def test_piece_factory_inversion_return_error(decorate_lazy_engine: NameTypeTupl
     def car_from_factory(engine: decorate_lazy_engine.annotation) -> AbstractVehicle:
         return Car(engine)
 
-    assert get_piece("AbstractVehicle", AbstractVehicle).__class__ is Car
+    assert get_piece("car_from_factory", AbstractVehicle).__class__ is Car
 
 
 def test_piece_factory_injected():
@@ -291,7 +282,7 @@ def test_piece_factory_injected():
 
     @Piece("car")
     class Car(AbstractVehicle):
-        def __init__(self, engine: Annotated[AbstractEngine, "AbstractEngine"]) -> None:
+        def __init__(self, engine: Annotated[AbstractEngine, "powerful_engine"]) -> None:
             super().__init__()
             self.engine = engine
 
@@ -331,24 +322,21 @@ def test_universal_scope_different_instances_with_factory():
     def engine_factory() -> AbstractEngine:
         return Engine()
 
-    engine = get_piece(AbstractEngine.__name__, AbstractEngine)
-    engine2 = get_piece(AbstractEngine.__name__, AbstractEngine)
-
-    assert engine2 is engine
+    assert get_piece("engine_factory", AbstractEngine) is get_piece("engine_factory", AbstractEngine)
 
 
 def test_original_scope_different_instances_with_factory():
     class Engine(AbstractEngine):
         pass
 
-    @PieceFactory(scope=Scope.ORIGINAL)
+    @PieceFactory("engine", scope=Scope.ORIGINAL)
     def engine_factory() -> AbstractEngine:
         return Engine()
 
-    engine = get_piece(AbstractEngine.__name__, AbstractEngine)
-    engine2 = get_piece(AbstractEngine.__name__, AbstractEngine)
-
-    assert engine2 is not engine
+    # fmt: off
+    assert (get_piece("engine", AbstractEngine) is not\
+            get_piece("engine", AbstractEngine))
+    # fmt: on
 
 
 def test_piece_factory_name_none():
@@ -356,12 +344,12 @@ def test_piece_factory_name_none():
         pass
 
     @PieceFactory()
-    def engine_factory() -> AbstractEngine:
+    def engine_factory() -> Engine:
         return Engine()
 
-    engine = get_piece(AbstractEngine.__name__, AbstractEngine)
+    engine = get_piece("engine_factory", AbstractEngine)
 
-    assert engine is engine
+    assert engine is registry.get_object("engine_factory", Engine)
 
 
 def test_piece_factory_name_specified():
@@ -406,14 +394,14 @@ def test_piece_with_default_factory_parameter_instantiation():
 
     tracker = []
 
-    @PieceFactory()
+    @PieceFactory("Engine")
     def engine_factory(
         power: Annotated[int, lambda: random_power],
     ) -> Engine:
         tracker.append(power)
         return Engine(power)
 
-    engine = get_piece(Engine.__name__, Engine)
+    engine = get_piece("Engine", Engine)
     assert engine.power == random_power
     assert len(tracker) == 1
     assert tracker[0] == random_power
@@ -465,10 +453,7 @@ def test_retrive_all_pieces_by_supertype():
 
     pieces = list(registry.get_all_objects_by_supertype(object))
     assert len(pieces) == 4
-    assert all(
-        class_ in {p.__class__ for p in pieces}
-        for class_ in (PowerfulEngine, Wheel, Lights, Transmition)
-    )
+    assert all(class_ in {p.__class__ for p in pieces} for class_ in (PowerfulEngine, Wheel, Lights, Transmition))
 
 
 def test_name_cannot_be_empty_string():
@@ -477,3 +462,17 @@ def test_name_cannot_be_empty_string():
         @Piece("")
         class Engine(AbstractEngine):
             pass
+
+
+def test_parameter_default_factory_accepts_nonzero_args():
+    def get_health_by_name(name: str) -> int:
+        return 1
+
+    with pytest.raises(PieceIncorrectUseException) as e:
+
+        @Piece("warrior")
+        class Warrior:
+            def __init__(self, health: Annotated[int, get_health_by_name]):
+                self.health = health
+
+        assert e.getrepr() == "Factory function must not have non-default parameters."

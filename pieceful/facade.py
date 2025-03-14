@@ -152,7 +152,7 @@ def register_piece_factory(
 
     _track_piece(
         piece_type,
-        name if name is not None else piece_type.__name__,
+        name if name is not None else factory.__name__,
         factory,
         creation_type,
         scope,
