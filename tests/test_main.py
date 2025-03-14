@@ -462,3 +462,17 @@ def test_name_cannot_be_empty_string():
         @Piece("")
         class Engine(AbstractEngine):
             pass
+
+
+def test_parameter_default_factory_accepts_nonzero_args():
+    def get_health_by_name(name: str) -> int:
+        return 1
+
+    with pytest.raises(PieceIncorrectUseException) as e:
+
+        @Piece("warrior")
+        class Warrior:
+            def __init__(self, health: Annotated[int, get_health_by_name]):
+                self.health = health
+
+        assert e.getrepr() == "Factory function must not have non-default parameters."

@@ -16,9 +16,7 @@ from .parameters import (
 ANNOTATION_TYPE = type(Annotated[str, "example"])
 
 
-def _create_piece_parameter(
-    name: str, piece_type: Any, piece_name: str
-) -> PieceParameter:
+def _create_piece_parameter(name: str, piece_type: Any, piece_name: str) -> PieceParameter:
     if not piece_name.strip():
         raise PieceException("piece_name must not be blank")
     return PieceParameter(name, piece_name, piece_type)
@@ -67,10 +65,9 @@ def _parse_annotated_parameter(param_name: str, annotation) -> Parameter:
     if isinstance(name_or_factory, str):
         return _create_piece_parameter(param_name, piece_type, name_or_factory)
 
-    if (
-        callable(name_or_factory)
-        and _count_non_default_parameters(name_or_factory) == 0
-    ):
+    if callable(name_or_factory):
+        if _count_non_default_parameters(name_or_factory) != 0:
+            raise PieceIncorrectUseException("Factory function must not have non-default parameters.")
         return _create_default_factory_parameter(param_name, name_or_factory)
 
     raise PieceIncorrectUseException("invalid use")
