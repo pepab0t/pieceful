@@ -2,9 +2,8 @@ from functools import lru_cache
 from typing import Generic, Type, get_origin
 
 
-@lru_cache
+# @lru_cache
 def is_generic(cls: Type[object]) -> bool:
-    print("cls:", cls)
     # If cls is a typing generic alias (e.g., List, Dict), get_origin(cls) is not None
     if get_origin(cls) is not None:
         return True

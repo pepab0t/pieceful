@@ -1,6 +1,6 @@
 from typing import Dict, Generic, List, Set, Tuple, TypeVar
 
-from pieceful.generic_utils import is_generic
+from pieceful.typing_utils import is_generic
 
 
 def test_is_generic():
