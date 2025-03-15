@@ -19,7 +19,7 @@ from pieceful import (
     register_piece,
     PieceException,
 )
-from pieceful.core import PieceData
+from pieceful.piece_data import PieceData
 from pieceful.registry import registry
 
 from .models import (
