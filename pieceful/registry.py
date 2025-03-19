@@ -8,6 +8,7 @@ from .exceptions import (
     _NeedCalculation,
 )
 from .piece_data import PieceData
+from .typing_utils import is_subclass
 
 Storage = dict[str, dict[Type[Any], PieceData[Any]]]
 
@@ -37,7 +38,7 @@ class Registry:
             return pd
 
         for type_, pd in self.registry[piece_name].items():
-            if issubclass(type_, piece_type):
+            if is_subclass(type_, piece_type):
                 return pd
         return None
 
@@ -63,7 +64,7 @@ class Registry:
     def get_all_objects_by_supertype(self, super_type: Type[_T]) -> Iterator[_T]:
         for piece_name, piece_data in self.registry.items():
             for type_ in piece_data.keys():
-                if issubclass(type_, super_type):
+                if is_subclass(type_, super_type):
                     yield self.get_object(piece_name, type_)
 
     def get_all_objects_by_name_matching(self, name_pattern: Pattern) -> Iterator[Any]:

@@ -1,5 +1,4 @@
 from functools import lru_cache
-from re import A
 from types import UnionType
 from typing import Annotated, Any, Generic, Literal, Type, TypeAliasType, Union, get_args, get_origin
 
