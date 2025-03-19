@@ -1,6 +1,6 @@
 from functools import lru_cache
 from types import UnionType
-from typing import Annotated, Any, Generic, Literal, Type, TypeAliasType, Union, get_args, get_origin
+from typing import Annotated, Any, Generic, Literal, Protocol, Type, TypeAliasType, Union, get_args, get_origin
 
 
 @lru_cache(typed=True)
@@ -10,7 +10,7 @@ def is_generic(cls: Type[object]) -> bool:
         return True
 
     # If cls is a user-defined generic, it should have Generic in its bases
-    if isinstance(cls, type) and any(issubclass(base, Generic) for base in cls.__bases__):
+    if isinstance(cls, type) and any((issubclass(base, Generic) and base is not Protocol) for base in cls.__bases__):
         return True
 
     # Check if it's a built-in generic like list, dict, set, etc.
@@ -45,7 +45,10 @@ def is_subclass(cls, parent) -> bool:
             return is_subclass(get_args(cls)[0], parent)
         if cls.__class__ is type and is_generic(parent):
             return any(is_subclass(base, parent) for base in cls.__orig_bases__)
-        return False
+        try:
+            return issubclass(cls, parent)
+        except TypeError:
+            return False
 
     if is_generic(cls):
         return issubclass(get_origin(cls), get_origin(parent)) and get_args(cls) == get_args(parent)
