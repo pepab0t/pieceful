@@ -19,7 +19,7 @@ from pieceful import (
     register_piece,
     PieceException,
 )
-from pieceful.core import PieceData
+from pieceful.piece_data import PieceData
 from pieceful.registry import registry
 
 from .models import (
@@ -227,7 +227,7 @@ def test_dependency_inversion_protocol_not_runtime_error():
 
         def get_speed(self, unit: str) -> int: ...
 
-    with pytest.raises(TypeError):
+    with pytest.raises(PieceNotFound):
         get_piece(vehicle_name, Car)
 
 

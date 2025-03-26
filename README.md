@@ -20,6 +20,7 @@ pip install pieceful
 -   Piece
 -   PieceFactory
 -   get_piece
+-   provide
 -   get_piece_by_name
 -   get_piece_by_supertype
 -   register_piece
@@ -31,6 +32,99 @@ pip install pieceful
 -   PieceIncorrectUseException
 -   InitStrategy
 -   Scope
+
+## Register piece
+
+This library provides 4 ways to register a dependency. Decorator versions are just wrappers and use `register_piece` or `register_piece_factory` internally.
+
+```python
+@Piece() # piece name autodetected by class name: "Car"
+class Car:
+    pass
+```
+
+```python
+class Car:
+    pass
+
+@PieceFactory() # piece name autodetected by factory function name: "car"
+def car() -> Car:
+    return Car()
+```
+
+```python
+class Car:
+    pass
+
+register_piece(Car) # piece name autodetected
+```
+
+```python
+class Car:
+    pass
+
+def car() -> Car:
+    return Car()
+
+register_piece_factory(car) # piece name autodetected
+```
+
+## Piece that depends on something else
+
+Class or factory function that define a depencency (piece) can require arguments, when every satisfies one of following conditions. Argument satisfies when:
+
+-   has a default value `(arg=1)` (if specified takes priority over other possibilities). In that case default value is used within dependency creation.
+
+```python
+@Piece()
+class Car:
+    def __init__(self, wheels=4): ...
+```
+
+-   is typed with `typing.Annotated[t, name]` when `name` is the `str` specifying other registered dependency name.
+
+```python
+@Piece()
+class Car:
+    def __init__(
+        self,
+        engine: Annotated[Engine, "engine"], # target other piece
+    ): ...
+```
+
+-   is typed with `typing.Annotated[t, factory]` when factory is a function with zero args that provide value for argument.
+
+```python
+@Piece()
+class Car:
+    def __init__(
+        self,
+        fuel_percent: Annotated[int, lambda: random.randint(0, 100)]
+    ): ...
+```
+
+-   is typed `(arg: OtherPiece)` when `OtherPiece` is type of other registered dependency with name `"OtherPiece"` (autodetected).
+
+```python
+@Piece()
+class Car:
+    def __init__(
+        self,
+        engine: Engine, # other piece with name "Engine"
+    ): ...
+```
+
+## Retrieve piece
+
+Package provides several options to retrieve a registered piece.
+
+```python
+provide(Car, "my_car")
+provide(Car) # get piece with name "Car" (autodetected)
+get_piece("my_car", Car) # deprecated
+get_pieces_by_supertype(Car) # get all pieces with Car supertype
+get_pieces_by_name("^my_.*") # get all pieces with name matching pattern
+```
 
 ## Tutorial
 
@@ -117,7 +211,7 @@ Example of `get_piece` function usage:
 
 ```python
 def main():
-    car = get_piece("car", AbstractVehicle)
+    car = provide(AbstractVehicle, "car")
 ```
 
 > Notice that `Car` depends on `engine` and a `driver`, that are injected in a constructor.
@@ -139,9 +233,9 @@ class ImpetuousDriver(AbstractDriver):
 class Car(AbstractVehicle):
     def __init__(
         self,
-        wheels: int,
         engine: t.Annotated[AbstractEngine, "engine"],
         driver: t.Annotated[AbstractDriver, "impetuous_driver"],
+        wheels: int = 4,
     ) -> None:
         ...
 ```

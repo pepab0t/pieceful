@@ -67,7 +67,5 @@ piece_data_mapping = {
 }
 
 
-def piece_data_factory(
-    type_: Type[_T], scope: Scope, constructor: Constructor
-) -> PieceData[_T]:
+def piece_data_factory(type_: Type[_T], scope: Scope, constructor: Constructor) -> PieceData[_T]:
     return piece_data_mapping[scope][_T](type_, constructor)

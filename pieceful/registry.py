@@ -2,12 +2,13 @@ from collections import defaultdict
 from re import Pattern
 from typing import Any, Iterator, Type, TypeVar
 
-from .core import PieceData
 from .exceptions import (
     AmbiguousPieceException,
     PieceNotFound,
     _NeedCalculation,
 )
+from .piece_data import PieceData
+from .typing_utils import is_subclass
 
 Storage = dict[str, dict[Type[Any], PieceData[Any]]]
 
@@ -32,21 +33,17 @@ class Registry:
 
         piece_dict[piece_data.type] = piece_data
 
-    def _get_piece_data(
-        self, piece_name: str, piece_type: Type[_T]
-    ) -> PieceData[_T] | None:
+    def _get_piece_data(self, piece_name: str, piece_type: Type[_T]) -> PieceData[_T] | None:
         if (pd := self.registry[piece_name].get(piece_type)) is not None:
             return pd
 
         for type_, pd in self.registry[piece_name].items():
-            if issubclass(type_, piece_type):
+            if is_subclass(type_, piece_type):
                 return pd
         return None
 
     def get_object(self, piece_name: str | None, piece_type: Type[_T]) -> _T:
-        piece_data = self._get_piece_data(
-            resolve_name(piece_name, piece_type), piece_type
-        )
+        piece_data = self._get_piece_data(resolve_name(piece_name, piece_type), piece_type)
 
         if piece_data is None:
             raise PieceNotFound(f"Piece {piece_type} not found in registry.")
@@ -67,15 +64,11 @@ class Registry:
     def get_all_objects_by_supertype(self, super_type: Type[_T]) -> Iterator[_T]:
         for piece_name, piece_data in self.registry.items():
             for type_ in piece_data.keys():
-                if issubclass(type_, super_type):
+                if is_subclass(type_, super_type):
                     yield self.get_object(piece_name, type_)
 
     def get_all_objects_by_name_matching(self, name_pattern: Pattern) -> Iterator[Any]:
-        for name, data in (
-            (name, data)
-            for name, data in self.registry.items()
-            if name_pattern.search(name)
-        ):
+        for name, data in ((name, data) for name, data in self.registry.items() if name_pattern.search(name)):
             for piece_data in data.values():
                 yield self.get_object(name, piece_data.type)
 
