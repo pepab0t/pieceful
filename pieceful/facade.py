@@ -2,9 +2,9 @@ import re
 from inspect import _empty, signature
 from typing import Any, Callable, Iterator, ParamSpec, Type, TypeVar
 
-from .core import piece_data_factory
 from .enums import InitStrategy, Scope
-from .exceptions import PieceException, PieceIncorrectUseException
+from .exceptions import PieceIncorrectUseException
+from .piece_data import piece_data_factory
 from .registry import registry
 
 _T = TypeVar("_T")
@@ -21,11 +21,11 @@ def _track_piece(
     scope: Scope = Scope.UNIVERSAL,
 ) -> None:
     if (scope, creation_type) == (Scope.ORIGINAL, InitStrategy.EAGER):
-        raise PieceIncorrectUseException(
-            "ORIGINAL scope with EAGER creation strategy is illegal"
-        )
+        raise PieceIncorrectUseException("ORIGINAL scope with EAGER creation strategy is illegal")
+    if piece_type is Any:
+        raise PieceIncorrectUseException("Piece type cannot be Any, please specify concrete type.")
     if not piece_name:
-        raise PieceException("Piece name cannot be empty string.")
+        raise PieceIncorrectUseException("Piece name cannot be empty string.")
 
     registry.add(piece_name, piece_data_factory(piece_type, scope, constructor))
 
